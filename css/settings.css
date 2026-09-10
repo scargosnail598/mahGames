@@ -82,6 +82,58 @@
 .settings-group .sound-button { margin: 0; }
 .settings-group .music-control { margin: 0; }
 
+/* Online co-op must fit the same visible viewport as the landing screen.
+   style.css makes both the overlay and .coop-card scroll containers; override
+   that here and compact the lobby progressively instead of showing scrollbars. */
+#coop-menu {
+  padding: clamp(8px, 1.5vh, 16px);
+  overflow: hidden !important;
+  place-items: center;
+}
+
+#coop-menu .coop-card {
+  width: min(700px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  max-height: calc(100dvh - 16px);
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  padding: clamp(16px, 2.5vh, 30px) clamp(20px, 3vw, 36px);
+}
+
+#coop-menu .eyebrow { margin-bottom: clamp(6px, 1vh, 12px); }
+#coop-menu h2 {
+  margin-bottom: clamp(8px, 1.4vh, 16px);
+  font-size: clamp(34px, 5.8vh, 50px);
+}
+#coop-menu .coop-copy {
+  margin: 0 0 clamp(10px, 1.6vh, 18px);
+  font-size: clamp(12px, 1.8vh, 15px);
+}
+#coop-menu .ship-picker { margin-bottom: clamp(8px, 1.4vh, 14px); }
+#coop-menu .ship-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(5px, .8vw, 8px);
+  min-width: 0;
+}
+#coop-menu .ship-choice {
+  min-width: 0;
+  min-height: 0;
+  height: clamp(105px, 19vh, 150px);
+  padding: 6px 4px;
+}
+#coop-menu .fighter-preview {
+  width: 100%;
+  height: clamp(56px, 11vh, 90px);
+}
+#coop-menu .primary-button,
+#coop-menu .secondary-button,
+#coop-menu #room-code-input {
+  min-height: clamp(40px, 6vh, 52px);
+}
+#coop-menu .coop-status { margin: clamp(6px, 1vh, 10px) 0 4px; }
+#coop-menu .join-row { margin-top: 5px; }
+
 @media (max-width: 620px) {
   #main-menu {
     padding: 6px;
@@ -97,6 +149,17 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
   #solo-ship-picker .ship-choice small { display: none; }
+
+  #coop-menu { padding: 6px; }
+  #coop-menu .coop-card {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    padding: 12px 14px;
+  }
+  #coop-menu .ship-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #coop-menu .ship-choice small { display: none; }
+  #coop-menu .join-row { grid-template-columns: 1fr 82px; }
 }
 
 @media (max-height: 760px) {
@@ -117,6 +180,18 @@
   }
   #main-menu .primary-button,
   #main-menu .secondary-button { min-height: 36px; margin: 2px 0; }
+
+  #coop-menu .coop-card { padding-top: 10px; padding-bottom: 10px; }
+  #coop-menu .eyebrow { margin-bottom: 5px; }
+  #coop-menu h2 { font-size: 36px; margin-bottom: 7px; }
+  #coop-menu .coop-copy { margin-bottom: 8px; font-size: 12px; line-height: 1.35; }
+  #coop-menu .ship-picker legend { margin-bottom: 5px; }
+  #coop-menu .ship-choice { height: 100px; padding: 4px 3px; }
+  #coop-menu .fighter-preview { height: 58px; }
+  #coop-menu .primary-button,
+  #coop-menu .secondary-button,
+  #coop-menu #room-code-input { min-height: 38px; }
+  #coop-menu .coop-status { min-height: 16px; margin: 5px 0 2px; }
 }
 
 @media (max-height: 620px) {
@@ -131,4 +206,13 @@
   #solo-ship-picker .ship-choice strong { margin-top: 1px; }
   #main-menu .primary-button,
   #main-menu .secondary-button { min-height: 32px; margin: 1px 0; }
+
+  #coop-menu .coop-copy { display: none; }
+  #coop-menu h2 { font-size: 30px; margin-bottom: 5px; }
+  #coop-menu .ship-choice { height: 80px; }
+  #coop-menu .fighter-preview { height: 43px; }
+  #coop-menu .ship-picker { margin-bottom: 5px; }
+  #coop-menu .primary-button,
+  #coop-menu .secondary-button,
+  #coop-menu #room-code-input { min-height: 34px; }
 }
