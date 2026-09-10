@@ -121,6 +121,8 @@ function code() {
   throw new Error("Room code exhaustion");
 }
 
+function ship(value) { return Number.isInteger(value) && value >= 0 && value < 4 ? value : 0; }
+
 function leave(peer) {
   if(!peer.room)return;
   const room=rooms.get(peer.room);peer.room=null;
@@ -134,13 +136,14 @@ function handle(peer,message) {
   if(!message || typeof message.type!=="string")return;
   if(message.type==="create"){
     leave(peer);const roomCode=code();
-    rooms.set(roomCode,{code:roomCode,host:peer,guest:null,createdAt:Date.now()});
+    rooms.set(roomCode,{code:roomCode,host:peer,guest:null,hostShip:ship(message.ship),createdAt:Date.now()});
     peer.room=roomCode;peer.role="host";peer.send({type:"created",room:roomCode});
   }else if(message.type==="join"){
     const roomCode=String(message.room||"").toUpperCase();const room=rooms.get(roomCode);
     if(!room || room.guest){peer.send({type:"error",message:"ROOM NOT FOUND OR ALREADY FULL"});return;}
     leave(peer);room.guest=peer;peer.room=roomCode;peer.role="guest";
-    room.host.send({type:"ready",role:"host",room:roomCode});peer.send({type:"ready",role:"guest",room:roomCode});
+    const requestedShip=ship(message.ship),guestShip=requestedShip===room.hostShip?(room.hostShip+1)%4:requestedShip,ships=[room.hostShip,guestShip];
+    room.host.send({type:"ready",role:"host",room:roomCode,ships});peer.send({type:"ready",role:"guest",room:roomCode,ships,shipAdjusted:guestShip!==requestedShip});
   }else if(message.type==="leave")leave(peer);
   else if(!peer.room)return;
   else {

@@ -186,8 +186,27 @@ button:focus-visible { outline:3px solid var(--gold); outline-offset:4px; }
 
 /* Two-pilot online lobby */
 .coop-entry { color:#fff; background:linear-gradient(110deg,#7e5ad4,#315d91); border-color:#aa91ef; }
-.coop-card { width:min(500px,94vw); }
+.coop-card { width:min(620px,94vw); max-height:96vh; overflow:auto; }
 .coop-copy { color:#a9bec9; line-height:1.55; margin:-6px 0 22px; }
+.ship-picker { margin:0 0 18px; padding:0; border:0; }
+.ship-picker legend { width:100%; margin-bottom:9px; color:#7f9eaa; font:700 10px monospace; letter-spacing:2px; text-align:left; }
+.ship-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.ship-choice { position:relative; min-height:112px; padding:10px 5px 8px; overflow:hidden; border:1px solid #354d61; border-radius:2px; background:linear-gradient(160deg,#101d2c,#070d19); color:#9eb1bd; cursor:pointer; transition:transform .16s,border-color .16s,box-shadow .16s; }
+.ship-choice:hover { transform:translateY(-2px); border-color:#6c8ca0; }
+.ship-choice.selected { border-color:var(--ship-color); box-shadow:inset 0 0 20px color-mix(in srgb,var(--ship-color) 16%,transparent),0 0 14px color-mix(in srgb,var(--ship-color) 18%,transparent); color:#fff; }
+.ship-choice strong,.ship-choice small { display:block; font-family:monospace; }
+.ship-choice strong { margin-top:4px; font-size:11px; letter-spacing:1px; }
+.ship-choice small { margin-top:3px; color:#78909e; font-size:8px; }
+.ship-preview { position:relative; display:block; width:58px; height:57px; margin:auto; filter:drop-shadow(0 0 7px var(--ship-color)); }
+.ship-preview::before,.ship-preview::after,.ship-preview i { content:""; position:absolute; display:block; background:var(--ship-color); }
+.ship-preview::before { inset:4px 22px 8px; clip-path:polygon(50% 0,100% 68%,75% 100%,25% 100%,0 68%); }
+.ship-preview::after { left:7px; right:7px; top:21px; height:22px; clip-path:polygon(0 0,42% 27%,50% 100%,58% 27%,100% 0,88% 100%,12% 100%); opacity:.8; }
+.ship-preview i { left:26px; bottom:0; width:6px; height:13px; background:#6ff6ff; box-shadow:0 0 9px #6ff6ff; }
+.ship-katana { --ship-color:#dcecf0; }.ship-torii { --ship-color:#ffc66d; }.ship-oni { --ship-color:#ff625a; }.ship-kitsune { --ship-color:#c680ff; }
+.ship-torii .ship-preview::after { left:1px; right:1px; top:17px; clip-path:polygon(0 10%,38% 0,47% 52%,53% 52%,62% 0,100% 10%,83% 100%,17% 100%); }
+.ship-oni .ship-preview::before { inset:2px 18px 7px; clip-path:polygon(50% 0,100% 45%,82% 100%,18% 100%,0 45%); }
+.ship-oni .ship-preview::after { left:4px; right:4px; top:18px; clip-path:polygon(0 0,42% 22%,50% 100%,58% 22%,100% 0,90% 82%,68% 72%,50% 100%,32% 72%,10% 82%); }
+.ship-kitsune .ship-preview::after { left:3px; right:3px; top:13px; height:34px; clip-path:polygon(0 0,43% 38%,50% 100%,57% 38%,100% 0,80% 100%,57% 65%,50% 100%,43% 65%,20% 100%); }
 .join-row { display:grid; grid-template-columns:1fr 120px; gap:9px; margin-top:7px; }
 .join-row button { margin:0; }
 #room-code-input { width:100%; min-height:56px; border:1px solid #557083; border-radius:2px; background:#07101e; color:#e8edf2; text-align:center; font:700 20px monospace; letter-spacing:6px; text-transform:uppercase; outline:none; }
@@ -206,6 +225,9 @@ button:focus-visible { outline:3px solid var(--gold); outline-offset:4px; }
 .wingmate-status i { grid-column:2; grid-row:1; height:3px; margin:1px; width:100%; max-width:100%; background:#65e7a0; transform-origin:left; transition:width .15s; }
 .wingmate-status strong { text-align:right; color:#c6d7dd; }
 @media(max-width:620px) {
+  .ship-grid { grid-template-columns:repeat(2,1fr); }
+  .ship-choice { min-height:91px; }
+  .ship-preview { height:43px; transform:scale(.8); transform-origin:center bottom; }
   .join-row { grid-template-columns:1fr 92px; }
   .coop-badge { top:62px; right:10px; }
   #room-code-input { min-height:48px; }

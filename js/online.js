@@ -41,6 +41,7 @@
       this.intentionalClose = false;
       this.lastInputAt = 0;
       this.lastStateAt = 0;
+      this.selectedShip = 0;
       this.bindUI();
     }
 
@@ -50,6 +51,15 @@
       this.waiting = document.getElementById("coop-waiting");
       this.input = document.getElementById("room-code-input");
       this.codeDisplay = document.getElementById("room-code-display");
+      this.shipChoices = Array.from(document.querySelectorAll(".ship-choice"));
+      this.shipChoices.forEach((choice) => choice.addEventListener("click", () => {
+        this.selectedShip = Number(choice.dataset.ship);
+        this.shipChoices.forEach((item) => {
+          const selected = item === choice;
+          item.classList.toggle("selected", selected);
+          item.setAttribute("aria-pressed", String(selected));
+        });
+      }));
       document.getElementById("coop-button").addEventListener("click", () => {
         this.game.showScreen("coop-menu");
         this.setStatus("CONNECT TO CREATE OR JOIN A ROOM");
@@ -101,7 +111,7 @@
     async createRoom() {
       try {
         await this.connect();
-        this.send({ type: "create" });
+        this.send({ type: "create", ship: this.selectedShip });
       } catch (_) { this.setStatus("SERVER CONNECTION FAILED", true); }
     }
 
@@ -110,7 +120,7 @@
       if (room.length !== 5) { this.setStatus("ENTER THE FIVE-LETTER CODE", true); return; }
       try {
         await this.connect();
-        this.send({ type: "join", room });
+        this.send({ type: "join", room, ship: this.selectedShip });
       } catch (_) { this.setStatus("SERVER CONNECTION FAILED", true); }
     }
 
@@ -133,7 +143,7 @@
         this.room = message.room;
         this.actions.classList.add("hidden");
         this.waiting.classList.add("hidden");
-        this.game.startCoop(this.role, this.room);
+        this.game.startCoop(this.role, this.room, message.ships, Boolean(message.shipAdjusted));
       } else if (message.type === "input" && this.role === "host") {
         const player = this.game.players[1];
         if (player) {

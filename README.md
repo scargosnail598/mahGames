@@ -7,6 +7,7 @@ A mouse-only vertical arcade shooter with solo play and a simple two-player onli
 - One player creates a private five-letter room code.
 - The second player opens the same site and joins with that code.
 - Both ships use mouse steering and automatic fire.
+- Each pilot chooses one of four visually distinct fighters; duplicate picks are automatically separated.
 - Enemies, score, combo, pickups, boss and Pulse energy are shared.
 - Each pilot has separate hull, shield and temporary power-ups. The HUD shows the wingmate's hull.
 - The room creator runs the authoritative game simulation. The Node server relays the second pilot's input and sends snapshots back at 20 Hz. For the smoothest MVP session, the room creator should keep the game tab active.

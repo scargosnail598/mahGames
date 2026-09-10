@@ -14,16 +14,21 @@
   T.ship = function(c,kind,time,weak) {
     const p=T.poly, metal=T.steel, edge=T.muted;
     if (kind === 'player') {
-      for (const s of [-1,1]) {
-        p(c,[[s*5,-12],[s*23,-20],[s*21,-5],[s*8,7]],T.ivory,edge);
-        p(c,[[s*7,3],[s*24,9],[s*22,18],[s*7,13]],'#9BAFBF',edge);
-        c.fillStyle=T.ivory; c.fillRect(s*19-2,-24,4,29);
-        c.fillStyle=T.coral; c.fillRect(s*19-2,-7,4,4);
-        c.fillStyle=T.cyan; c.fillRect(s*9-2,15,4,T.reducedMotion.matches?10:10+Math.sin(time*24)*3);
+      const variant=Number(weak)||0, thrust=T.reducedMotion.matches?9:9+Math.sin(time*24)*3;
+      if(variant===1){
+        for(const s of [-1,1]){p(c,[[s*5,-10],[s*31,-18],[s*27,1],[s*11,11]],'#D4C5A6',T.amber);p(c,[[s*10,4],[s*30,11],[s*25,22],[s*8,15]],'#705E4B',edge);c.fillStyle=T.amber;c.fillRect(s*27-2,-20,4,31);c.fillStyle=T.cyan;c.fillRect(s*11-2,16,4,thrust);}
+        p(c,[[0,-25],[8,-7],[7,20],[0,24],[-7,20],[-8,-7]],T.ivory,T.amber);p(c,[[-4,-10],[0,-18],[4,-10],[3,6],[-3,6]],T.navy,T.amber);
+      }else if(variant===2){
+        p(c,[[-28,-14],[-12,-20],[0,-30],[12,-20],[28,-14],[23,14],[11,23],[0,18],[-11,23],[-23,14]],'#6F3238',T.coral);
+        for(const s of [-1,1]){p(c,[[s*8,-14],[s*22,-9],[s*17,14],[s*7,9]],'#B9C5C8',edge);c.fillStyle=T.coral;c.fillRect(s*17-3,13,6,6);c.fillStyle=T.amber;c.fillRect(s*13-2,19,4,thrust);}
+        p(c,[[0,-28],[7,-8],[6,17],[0,21],[-6,17],[-7,-8]],'#D9D7CC',T.coral);T.disc(c,0,-4,4,T.coral);
+      }else if(variant===3){
+        for(const s of [-1,1]){p(c,[[s*4,-13],[s*28,-25],[s*20,1],[s*9,11]],'#7780A9','#C680FF');p(c,[[s*8,2],[s*27,20],[s*15,25],[s*5,12]],'#3C3D69',edge);c.fillStyle='#C680FF';c.fillRect(s*20-2,-13,3,19);c.fillStyle='#FF74DC';c.fillRect(s*10-2,16,4,thrust+3);}
+        p(c,[[0,-30],[6,-10],[5,20],[0,25],[-5,20],[-6,-10]],'#D8DAE8','#C680FF');p(c,[[-3,-15],[0,-22],[3,-15],[2,5],[-2,5]],T.navy,'#FF74DC');
+      }else{
+        for(const s of [-1,1]){p(c,[[s*5,-12],[s*23,-20],[s*21,-5],[s*8,7]],T.ivory,edge);p(c,[[s*7,3],[s*24,9],[s*22,18],[s*7,13]],'#9BAFBF',edge);c.fillStyle=T.ivory;c.fillRect(s*19-2,-24,4,29);c.fillStyle=T.coral;c.fillRect(s*19-2,-7,4,4);c.fillStyle=T.cyan;c.fillRect(s*9-2,15,4,thrust);}
+        p(c,[[0,-27],[6,-9],[7,18],[0,21],[-7,18],[-6,-9]],T.ivory,edge);p(c,[[0,-16],[3,-6],[3,4],[-3,4],[-3,-6]],T.navy,T.cyan);c.fillStyle=edge;c.fillRect(-3,9,6,2);
       }
-      p(c,[[0,-27],[6,-9],[7,18],[0,21],[-7,18],[-6,-9]],T.ivory,edge);
-      p(c,[[0,-16],[3,-6],[3,4],[-3,4],[-3,-6]],T.navy,T.cyan);
-      c.fillStyle=edge; c.fillRect(-3,9,6,2);
     } else if (kind === 'scout') {
       for(const s of [-1,1]) p(c,[[s*10,-14],[s*17,-12],[s*17,13],[s*10,15]],metal,T.coral);
       c.fillStyle=edge; c.fillRect(-12,-3,24,5); T.disc(c,0,1,7,metal); T.disc(c,0,2,3,T.coral);
