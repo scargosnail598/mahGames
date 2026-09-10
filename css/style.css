@@ -166,3 +166,20 @@ button:focus-visible { outline:3px solid var(--gold); outline-offset:4px; }
   .theme-subtitle { margin:12px 0; }
 }
 @media(max-height:540px) { .overlay { place-items:start center; } .menu-card { margin:auto; } }
+
+/* Night Flight: glass cockpit panels and quiet ambient score. */
+#main-menu { background:linear-gradient(90deg,#03091355,transparent 70%); }
+.hero-card { background:linear-gradient(135deg,#183143e8,#070d1de8); border-color:#6eb6bd55; box-shadow:0 26px 90px #0007,inset 0 1px #c7faf018; }
+.hero-card::before { width:58px; border-color:#b8e5d7; }
+.hero-card::after { height:58px; border-color:#b69482; }
+.theme-subtitle { color:#e6c3a1; text-shadow:0 0 24px #ffc66d25; }
+.mission-coordinate { display:flex; align-items:center; justify-content:center; gap:12px; color:#96c9c6; font-size:22px; margin:0 0 12px; }
+.mission-coordinate span { font-size:9px; letter-spacing:2px; color:#88a6b5; }
+.primary-button { background:linear-gradient(110deg,#a5ded4,#5cbec7); box-shadow:0 5px 24px #4bcbd018; }
+.music-control { display:grid; grid-template-columns:1fr 1.1fr 35px; align-items:center; gap:12px; text-align:left; padding:12px 0 3px; color:#bbd5dc; font-size:10px; letter-spacing:1px; }
+.music-control small { display:block; font-size:8px; letter-spacing:.8px; color:#879ead; margin-top:4px; }
+.music-volume { width:100%; height:30px; accent-color:#7dcac6; cursor:pointer; margin:0; }
+.music-control output { font:11px monospace; text-align:right; color:#d1c0a8; }
+.music-volume:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+@media(max-height:760px) { .hero-card { padding:24px 32px; } .hero-card h1 { font-size:52px; } .hero-card .eyebrow { margin-bottom:15px; } .hero-card .tagline { margin:12px 0; } .hero-card .theme-subtitle { margin:14px 0; } }
+@media(max-width:620px) { .hero-card { padding:22px; } .hero-card h1 { font-size:44px; } .music-control { gap:8px; } }

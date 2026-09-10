@@ -38,6 +38,22 @@
     }
 
     bindEvents() {
+      // Only gestures unlock audio; returning to a hidden tab stays silent.
+      document.addEventListener('pointerdown', () => {
+        this.audio.setBackgrounded(false);
+        this.audio.unlock();
+      });
+      document.querySelectorAll('.music-volume').forEach((slider) => {
+        slider.value=Math.round(this.audio.musicVolume*100);
+        slider.nextElementSibling.textContent=slider.value==='0'?'OFF':slider.value+'%';
+        slider.addEventListener('input', () => {
+          this.audio.setMusicVolume(Number(slider.value)/100);
+          document.querySelectorAll('.music-volume').forEach((other)=>{
+            other.value=slider.value;
+            other.nextElementSibling.textContent=other.value==='0'?'OFF':other.value+'%';
+          });
+        });
+      });
       window.addEventListener("resize", () => this.resize());
       this.canvas.addEventListener("pointermove", (event) => this.movePointer(event));
       this.canvas.addEventListener("pointerdown", (event) => {
@@ -56,9 +72,11 @@
       document.querySelectorAll(".sound-button").forEach((button) => button.addEventListener("click", () => this.toggleSound()));
       document.addEventListener("visibilitychange", () => {
         if (document.hidden && this.state === "playing") this.pause(true);
+        if(document.hidden)this.audio.setBackgrounded(true);
       });
       window.addEventListener("blur", () => {
         if (this.state === "playing") this.pause(true);
+        this.audio.setBackgrounded(true);
       });
       document.addEventListener("contextmenu", (event) => {
         if (event.target === this.canvas) event.preventDefault();
@@ -111,7 +129,9 @@
     }
 
     start() {
+      this.audio.setBackgrounded(false);
       this.audio.unlock();
+      this.audio.setScene('playing');
       this.resetWorld();
       this.state = "playing";
       this.hideScreens();
@@ -121,6 +141,7 @@
     }
 
     mainMenu() {
+      this.audio.setScene("menu");
       this.state = "menu";
       this.ui.hud.classList.add("hidden");
       this.showScreen("main-menu");
@@ -130,6 +151,7 @@
     pause(automatic) {
       if (this.state !== "playing") return;
       this.state = "paused";
+      this.audio.setScene("paused");
       this.showScreen("pause-menu");
       const eyebrow = document.querySelector("#pause-menu .eyebrow");
       eyebrow.textContent = automatic ? "PAUSED FOR YOUR COMFORT" : "SYSTEMS HOLDING";
@@ -137,6 +159,9 @@
 
     resume() {
       if (this.state !== "paused") return;
+      this.audio.setBackgrounded(false);
+      this.audio.unlock();
+      this.audio.setScene('playing');
       this.state = "playing";
       this.hideScreens();
       this.lastTime = performance.now();
@@ -410,6 +435,7 @@
     endGame() {
       if (this.state !== "playing") return;
       this.state = "gameover";
+      this.audio.setScene("menu");
       this.effects.burst(this.player.x, this.player.y, "#ffb35a", 55, 350);
       this.effects.wave(this.player.x, this.player.y, 150, "#ff708d");
       this.audio.play("explosion");
