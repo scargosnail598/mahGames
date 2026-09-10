@@ -33,7 +33,7 @@
       const ids = [
         "hud", "health-fill", "shield-fill", "health-text", "shield-text", "score-text", "combo-text",
         "boss-hud", "boss-fill", "pulse-button", "pulse-fill", "pulse-label", "powerup-status", "toast",
-        "main-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
+        "main-menu", "settings-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
         "coop-badge", "coop-room-label", "network-latency", "wingmate-status", "wingmate-health", "wingmate-health-text",
       ];
       this.ui = {};
@@ -64,8 +64,10 @@
       });
       document.getElementById("pulse-button").addEventListener("click", () => this.activatePulse());
       document.getElementById("play-button").addEventListener("click", () => this.start());
+      document.getElementById("settings-button").addEventListener("click", () => this.showScreen("settings-menu"));
+      document.getElementById("settings-back-button").addEventListener("click", () => this.showScreen("main-menu"));
       document.getElementById("how-button").addEventListener("click", () => this.showScreen("how-menu"));
-      document.getElementById("how-back-button").addEventListener("click", () => this.showScreen("main-menu"));
+      document.getElementById("how-back-button").addEventListener("click", () => this.showScreen("settings-menu"));
       document.getElementById("pause-button").addEventListener("click", () => this.pause(false));
       document.getElementById("continue-button").addEventListener("click", () => this.resume());
       document.getElementById("restart-button").addEventListener("click", () => this.start());
