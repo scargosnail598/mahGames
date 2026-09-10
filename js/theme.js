@@ -68,31 +68,112 @@
     if(type==='drone') { c.rect(-7,-6,14,12); c.moveTo(-10,0); c.lineTo(10,0); }
     c.stroke();
   };
-  // Tile artwork is generated only on resize; scrolling uses two cached edge strips.
+  // Deterministic artwork is baked on resize. Animation only composites cached layers.
   class OrbitalPort {
-    constructor(w,h) { this.offset=0; this.resize(w,h); }
+    constructor(w,h) { this.time=0; this.resize(w,h); }
+    canvas(w,h,paint) {
+      const a=document.createElement('canvas'); a.width=Math.ceil(w); a.height=Math.ceil(h);
+      paint(a.getContext('2d'),a.width,a.height); return a;
+    }
     resize(w,h) {
-      this.width=w; this.height=h; this.edge=Math.ceil(w*.175); this.tileHeight=640;
-      this.tiles=[0,1].map(side=>{
-        const a=document.createElement('canvas'); a.width=this.edge; a.height=this.tileHeight;
-        const c=a.getContext('2d');
-        for(let i=0;i<4;i++) {
-          const y=i*160+12, span=this.edge*(.65+(i%2)*.25), x=side?this.edge-span:0;
-          c.fillStyle='#101C2C'; c.fillRect(x,y,span,132);
-          c.strokeStyle='#29394B'; c.strokeRect(x+4,y+5,span-8,120);
-          c.fillStyle='#18293B'; c.fillRect(x+12,y+22,span-24,75);
-          // Layered roof silhouettes seen from overhead.
-          for(let k=0;k<3;k++) T.poly(c,[[x+8,y+30+k*18],[x+span/2,y+20+k*18],[x+span-8,y+30+k*18],[x+span-16,y+38+k*18],[x+16,y+38+k*18]],'#26374A','#34475B');
-          c.fillStyle='#477B86'; for(let j=0;j<5;j++) c.fillRect(x+14+j*8,y+110,3,2);
-          c.fillStyle= i%2?'#805274':'#427C86'; c.fillRect(x+span*.68,y+45,10,39);
-          c.fillStyle='#152131'; for(let j=0;j<4;j++) c.fillRect(x+span*.68+2,y+49+j*8,6,3);
-          c.strokeStyle='#30475C'; c.beginPath(); c.moveTo(x+span*.3,y); c.lineTo(x+span*.3,y-12); c.stroke();
+      this.width=w; this.height=h; this.edge=Math.ceil(w*.19); this.tileHeight=1200;
+      let seed=713;
+      const rng=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+      this.haze=this.canvas(640,640,(c)=>{
+        const g=c.createRadialGradient(320,320,5,320,320,320);
+        g.addColorStop(0,'#569eae');g.addColorStop(.35,'#30587988');g.addColorStop(1,'#14243c00');
+        c.fillStyle=g;c.fillRect(0,0,640,640);
+      });
+      this.moon=this.canvas(380,380,(c)=>{
+        const g=c.createRadialGradient(150,120,5,200,190,165);
+        g.addColorStop(0,'#97b8bc');g.addColorStop(.5,'#526d80');g.addColorStop(1,'#111e34');
+        c.save();c.beginPath();c.arc(190,190,150,0,Math.PI*2);c.clip();c.fillStyle=g;c.fillRect(0,0,380,380);
+        for(let i=0;i<90;i++){T.disc(c,40+rng()*300,40+rng()*300,2+rng()*17,'#12233718');}
+        c.restore();c.strokeStyle='#b2e2df55';c.lineWidth=2;c.beginPath();c.arc(190,190,151,Math.PI*.95,Math.PI*1.8);c.stroke();
+      });
+      this.layers=[0,1,2].map(depth=>[0,1].map(side=>this.canvas(this.edge,1200,(c,ew)=>{
+        c.save(); if(side){c.translate(ew,0);c.scale(-1,1);}
+        const count=depth===0?16:depth===1?8:4;
+        for(let i=0;i<count;i++) {
+          const y=i*1200/count+18, bw=ew*(.4+rng()*.58), bh=depth===0?45+rng()*70:85+rng()*100;
+          const x=depth===2?-ew*.20:rng()*ew*.1;
+          c.fillStyle='#02071388';c.fillRect(x+12,y+15,bw,bh);
+          const g=c.createLinearGradient(x,y,x+bw,y+bh);
+          g.addColorStop(0,depth===0?'#17273b':'#253b4d');g.addColorStop(1,'#0c1627');
+          c.fillStyle=g;c.fillRect(x,y,bw,bh);c.strokeStyle='#53708555';c.strokeRect(x+.5,y+.5,bw-1,bh-1);
+          c.fillStyle='#091322';c.fillRect(x+8,y+8,bw-16,bh-16);
+          if((i+depth)%3===0) {
+            // Copper-green temple roofs nested inside orbital docking platforms.
+            for(let k=0;k<3;k++){
+              const yy=y+20+k*22;
+              T.poly(c,[[x+5,yy+12],[x+bw*.5,yy-6],[x+bw-5,yy+12],[x+bw-13,yy+21],[x+13,yy+21]],'#284451','#65848266');
+              c.strokeStyle='#99b9a044';c.beginPath();c.moveTo(x+18,yy+14);c.lineTo(x+bw-18,yy+14);c.stroke();
+            }
+          }else{
+            c.fillStyle='#203448';c.fillRect(x+16,y+14,bw-32,bh-28);
+            for(let k=0;k<4;k++){c.fillStyle='#071221';c.fillRect(x+22,y+25+k*14,Math.max(4,bw-50),5);}
+            c.strokeStyle='#77a6b533';c.beginPath();c.arc(x+bw*.52,y+bh*.5,Math.min(bw,bh)*.29,0,Math.PI*2);c.stroke();
+          }
+          c.fillStyle='#71b8b277'; for(let yy=0;yy<5;yy++)for(let xx=0;xx<3;xx++)if(rng()>.3)c.fillRect(x+bw-18+xx*4,y+20+yy*9,2,3);
+          const neon=(i%2)?'#c5868c':'#6bc8c7';
+          c.shadowColor=neon;c.shadowBlur=9;c.fillStyle=neon;c.globalAlpha=.6;c.fillRect(x+bw-7,y+15,2,bh-30);c.globalAlpha=1;c.shadowBlur=0;
+          // Tiny abstract wayfinding glyphs (decorative, never gameplay text).
+          c.fillStyle='#0a1725';c.fillRect(x+18,y+bh-27,43,15);
+          c.strokeStyle=neon;c.lineWidth=1;
+          for(let k=0;k<4;k++){const xx=x+22+k*9;c.strokeRect(xx,y+bh-24,5,7);c.beginPath();c.moveTo(xx,y+bh-21);c.lineTo(xx+6,y+bh-21);c.stroke();}
+          c.strokeStyle='#446578';c.beginPath();c.moveTo(x+bw*.35,y);c.lineTo(x+bw*.35,y-13);c.stroke();
         }
-        return a;
+        c.restore();
+      })));
+      this.vignette=this.canvas(w,h,c=>{
+        const g=c.createRadialGradient(w*.5,h*.46,w*.08,w*.5,h*.46,Math.max(w,h)*.7);
+        g.addColorStop(0,'#03081000');g.addColorStop(.65,'#03081008');g.addColorStop(1,'#01040be6');c.fillStyle=g;c.fillRect(0,0,w,h);
       });
     }
-    update(dt,speed) { if(!T.reducedMotion.matches) this.offset=(this.offset+dt*18*speed)%this.tileHeight; }
-    draw(c) { c.save(); c.globalAlpha=.8; this.tiles.forEach((tile,s)=>{ for(let y=this.offset-this.tileHeight;y<this.height;y+=this.tileHeight) c.drawImage(tile,s?this.width-this.edge:0,y); }); c.restore(); }
+    update(dt,speed) { if(!T.reducedMotion.matches)this.time+=dt*speed; }
+    draw(c) {
+      const w=this.width,h=this.height,t=this.time;
+      // 3 slow, seamless lighting phases: jade port -> lantern district -> blue orbit.
+      const phase=t/48, mix=(1-Math.cos((phase%1)*Math.PI))/2;
+      const colors=[[40,117,124],[123,57,98],[52,78,140]],a=colors[Math.floor(phase)%3],b=colors[(Math.floor(phase)+1)%3];
+      const rgb=a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',');
+      c.save();
+      c.globalAlpha=.16;c.drawImage(this.haze,-w*.22+Math.sin(t*.035)*w*.08,-h*.1,w*.95,h*1.1);
+      c.globalAlpha=.12;c.drawImage(this.haze,w*.47,-h*.2+Math.sin(t*.027)*30,w*.8,h*1.2);
+      c.globalAlpha=.30;c.drawImage(this.moon,w*.68,h*.08,Math.min(w*.32,380),Math.min(w*.32,380));
+      // Distant orbital arcs give scale without adding bright central obstacles.
+      c.strokeStyle='#688eab';c.lineWidth=1;c.globalAlpha=.09;
+      for(let i=0;i<3;i++){c.beginPath();c.ellipse(w*.77,h*.29,w*.28+i*13,h*.28+i*12,-.3,0,Math.PI*2);c.stroke();}
+      this.layers.forEach((pair,depth)=>{
+        const speed=[5,13,24][depth],offset=(t*speed)%1200;
+        c.globalAlpha=[.18,.38,.92][depth];
+        pair.forEach((tile,side)=>{for(let y=offset-1200;y<h;y+=1200)c.drawImage(tile,side?w-this.edge:0,y);});
+      });
+      const light=c.createLinearGradient(0,0,w,0);
+      light.addColorStop(0,`rgba(${rgb},.20)`);light.addColorStop(.22,`rgba(${rgb},.02)`);
+      light.addColorStop(.5,'rgba(0,0,0,0)');light.addColorStop(.78,`rgba(${rgb},.02)`);light.addColorStop(1,`rgba(${rgb},.20)`);
+      c.globalAlpha=1;c.fillStyle=light;c.fillRect(0,0,w,h);
+      // Soft searchlights, passing traffic and lanterns stay at the outer margins.
+      for(let side=0;side<2;side++) {
+        c.save();if(side){c.translate(w,0);c.scale(-1,1);}
+        for(let i=0;i<3;i++){
+          const y=(i*h*.43+t*9)%(h+160)-80;
+          c.globalAlpha=.055;c.fillStyle='#7bb8c9';
+          T.poly(c,[[w*.06,y],[w*.17,y+100+Math.sin(t*.13+i)*40],[w*.09,y+180]],'#7bb8c9');
+        }
+        for(let i=0;i<9;i++){
+          const x=w*(.025+(i%4)*.035),y=(i*173+t*(10+i%3*4))%(h+70)-35;
+          c.globalAlpha=.25; c.fillStyle='#72b9c2';c.fillRect(x,y,1,12);c.fillRect(x-2,y+10,5,2);
+        }
+        for(let i=0;i<5;i++){
+          const x=w*(.05+(i%3)*.04)+Math.sin(t*.18+i)*3,y=(i*241+t*18)%(h+60)-30;
+          c.globalAlpha=.35;T.disc(c,x,y,3,'#efad89');c.globalAlpha=.06;T.disc(c,x,y,12,'#efad89');
+        }
+        c.restore();
+      }
+      c.globalAlpha=1;c.drawImage(this.vignette,0,0);c.restore();
+    }
   }
+
   Starfall.OrbitalPort=OrbitalPort;
 })();
