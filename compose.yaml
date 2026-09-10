@@ -1,0 +1,16 @@
+services:
+  starfall:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      # Set this when publishing behind HTTPS, for example:
+      # ALLOWED_ORIGIN: "https://game.example.com"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

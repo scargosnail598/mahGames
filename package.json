@@ -1,0 +1,11 @@
+{
+  "name": "starfall-squadron",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Mouse-only arcade shooter with two-player online co-op",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --check server.js && node --check js/game.js && node --check js/entities.js && node --check js/online.js && node --test tests/*.test.cjs && node tests/audio-lifecycle.cjs"
+  },
+  "engines": { "node": ">=22" }
+}

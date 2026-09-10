@@ -17,6 +17,8 @@
       this.lastTime = performance.now();
       this.backgroundTime = 0;
       this.shake = 0;
+      this.onlineRole = null;
+      this.localPlayerIndex = 0;
       this.toastTimer = null;
       this.cacheElements();
       this.resize();
@@ -31,7 +33,8 @@
       const ids = [
         "hud", "health-fill", "shield-fill", "health-text", "shield-text", "score-text", "combo-text",
         "boss-hud", "boss-fill", "pulse-button", "pulse-fill", "pulse-label", "powerup-status", "toast",
-        "main-menu", "how-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
+        "main-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
+        "coop-badge", "coop-room-label", "wingmate-status", "wingmate-health", "wingmate-health-text",
       ];
       this.ui = {};
       ids.forEach((id) => { this.ui[id] = document.getElementById(id); });
@@ -67,7 +70,7 @@
       document.getElementById("continue-button").addEventListener("click", () => this.resume());
       document.getElementById("restart-button").addEventListener("click", () => this.start());
       document.getElementById("pause-main-button").addEventListener("click", () => this.mainMenu());
-      document.getElementById("again-button").addEventListener("click", () => this.start());
+      document.getElementById("again-button").addEventListener("click", () => this.onlineRole ? this.mainMenu() : this.start());
       document.getElementById("over-main-button").addEventListener("click", () => this.mainMenu());
       document.querySelectorAll(".sound-button").forEach((button) => button.addEventListener("click", () => this.toggleSound()));
       document.addEventListener("visibilitychange", () => {
@@ -93,16 +96,17 @@
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       if (this.port) this.port.resize(this.width, this.height);
       if (this.starfield) this.starfield.resize(this.width, this.height, false);
-      if (this.player) {
-        this.player.x = clamp(this.player.x, 30, this.width - 30);
-        this.player.y = clamp(this.player.y, 100, this.height - 30);
-        this.player.targetX = clamp(this.player.targetX, 30, this.width - 30);
-        this.player.targetY = clamp(this.player.targetY, 100, this.height - 30);
+      for (const player of this.players || []) {
+        player.x = clamp(player.x, 30, this.width - 30);
+        player.y = clamp(player.y, 100, this.height - 30);
+        player.targetX = clamp(player.targetX, 30, this.width - 30);
+        player.targetY = clamp(player.targetY, 100, this.height - 30);
       }
     }
 
     resetWorld() {
       this.player = new Starfall.Player(this.width / 2, this.height * .78);
+      this.players = [this.player];
       this.player.targetX = this.width / 2;
       this.player.targetY = this.height * .78;
       this.playerProjectiles = [];
@@ -111,6 +115,7 @@
       this.powerups = [];
       this.boss = null;
       this.companion = new Starfall.CompanionDrone(1);
+      this.companions = [this.companion];
       this.companion.x = this.player.x + 38;
       this.companion.y = this.player.y + 14;
       this.effects.clear();
@@ -129,6 +134,9 @@
     }
 
     start() {
+      if (window.coopClient) window.coopClient.leave(false);
+      this.onlineRole = null;
+      this.localPlayerIndex = 0;
       this.audio.setBackgrounded(false);
       this.audio.unlock();
       this.audio.setScene('playing');
@@ -140,16 +148,49 @@
       this.showToast("MISSION START", "#7ff7ff");
     }
 
+    startCoop(role, roomCode) {
+      this.audio.setBackgrounded(false);
+      this.audio.unlock();
+      this.audio.setScene("playing");
+      this.onlineRole = role;
+      this.localPlayerIndex = role === "guest" ? 1 : 0;
+      this.resetWorld();
+      this.player.x = this.width * .42;
+      this.player.targetX = this.player.x;
+      const wingmate = new Starfall.Player(this.width * .58, this.height * .78, 1);
+      wingmate.targetX = wingmate.x;
+      this.players.push(wingmate);
+      this.companions.push(new Starfall.CompanionDrone(-1, 1));
+      this.state = "playing";
+      this.hideScreens();
+      this.ui.hud.classList.remove("hidden");
+      this.ui["coop-badge"].classList.remove("hidden");
+      this.ui["wingmate-status"].classList.remove("hidden");
+      this.ui["coop-room-label"].textContent = roomCode;
+      this.lastTime = performance.now();
+      this.updateHUD();
+      this.showToast(role === "host" ? "WINGMATE LINKED" : "JOINED SQUADRON", "#65e7a0");
+    }
+
     mainMenu() {
+      if (this.onlineRole && window.coopClient) window.coopClient.leave(false);
+      this.onlineRole = null;
+      this.localPlayerIndex = 0;
       this.audio.setScene("menu");
       this.state = "menu";
       this.ui.hud.classList.add("hidden");
+      this.ui["coop-badge"].classList.add("hidden");
+      this.ui["wingmate-status"].classList.add("hidden");
       this.showScreen("main-menu");
       this.resetWorld();
     }
 
     pause(automatic) {
       if (this.state !== "playing") return;
+      if (this.onlineRole) {
+        if (!automatic) this.showToast("CO-OP MISSION STAYS LIVE", "#ffc66d");
+        return;
+      }
       this.state = "paused";
       this.audio.setScene("paused");
       this.showScreen("pause-menu");
@@ -165,8 +206,9 @@
       this.state = "playing";
       this.hideScreens();
       this.lastTime = performance.now();
-      this.player.targetX = this.player.x;
-      this.player.targetY = this.player.y;
+      const local = this.getLocalPlayer();
+      local.targetX = local.x;
+      local.targetY = local.y;
     }
 
     showScreen(id) {
@@ -184,10 +226,22 @@
     }
 
     movePointer(event) {
-      if (!this.player) return;
+      const local = this.getLocalPlayer();
+      if (!local) return;
       const rect = this.canvas.getBoundingClientRect();
-      this.player.targetX = (event.clientX - rect.left) * this.width / rect.width;
-      this.player.targetY = (event.clientY - rect.top) * this.height / rect.height;
+      local.targetX = (event.clientX - rect.left) * this.width / rect.width;
+      local.targetY = (event.clientY - rect.top) * this.height / rect.height;
+      if (this.onlineRole === "guest" && window.coopClient) {
+        window.coopClient.sendInput(local.targetX / this.width, local.targetY / this.height);
+      }
+    }
+
+    getLocalPlayer() { return (this.players || [this.player])[this.localPlayerIndex] || this.player; }
+
+    getTargetPlayer(from) {
+      const alive = (this.players || [this.player]).filter((player) => !player.dead);
+      if (!alive.length) return this.player;
+      return alive.reduce((best, player) => distanceSq(from, player) < distanceSq(from, best) ? player : best, alive[0]);
     }
 
     loop(timestamp) {
@@ -197,7 +251,7 @@
       this.backgroundTime += dt;
       this.port.update(dt, this.state === "playing" ? 1 : .38);
       this.starfield.update(Starfall.THEME.reducedMotion.matches ? 0 : dt, this.state === "playing" ? 1 : .38);
-      if (this.state === "playing") this.update(dt);
+      if (this.state === "playing" && this.onlineRole !== "guest") this.update(dt);
       else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
       this.draw();
       requestAnimationFrame((time) => this.loop(time));
@@ -205,10 +259,12 @@
 
     update(dt) {
       this.elapsed += dt;
-      this.player.update(dt, this);
+      for (const player of this.players) if (!player.dead) player.update(dt, this);
       this.pulseEnergy = Math.min(C.PULSE.maxEnergy, this.pulseEnergy + C.PULSE.passiveCharge * dt);
 
-      if (this.player.droneTime > 0) this.companion.update(dt, this);
+      this.players.forEach((player, index) => {
+        if (!player.dead && player.droneTime > 0) this.companions[index].update(dt, this);
+      });
       this.updateCombo(dt);
       this.spawnEnemies(dt);
 
@@ -223,7 +279,7 @@
       this.cleanEntities();
       this.shake = Math.max(0, this.shake - dt * 22);
       this.updateHUD();
-      if (this.player.dead) this.endGame();
+      if (this.players.every((player) => player.dead)) this.endGame();
     }
 
     updateCombo(dt) {
@@ -275,24 +331,30 @@
       this.shake = 5;
     }
 
-    activatePulse() {
+    activatePulse(playerIndex) {
       if (this.state !== "playing" || this.pulseEnergy < C.PULSE.maxEnergy) return;
+      if (this.onlineRole === "guest") {
+        if (window.coopClient) window.coopClient.sendPulse();
+        return;
+      }
+      const source = this.players[playerIndex == null ? this.localPlayerIndex : playerIndex] || this.player;
+      if (source.dead) return;
       this.pulseEnergy = 0;
-      this.effects.wave(this.player.x, this.player.y, C.PULSE.radius, "#6fffff");
-      this.effects.burst(this.player.x, this.player.y, "#7dffff", 34, 310);
+      this.effects.wave(source.x, source.y, C.PULSE.radius, "#6fffff");
+      this.effects.burst(source.x, source.y, "#7dffff", 34, 310);
       this.audio.play("pulse");
       this.shake = 9;
       for (const enemy of this.enemies) {
-        if (distanceSq(this.player, enemy) <= C.PULSE.radius * C.PULSE.radius) {
+        if (distanceSq(source, enemy) <= C.PULSE.radius * C.PULSE.radius) {
           enemy.health -= C.PULSE.damage;
           if (enemy.health <= 0) this.destroyEnemy(enemy, true);
         }
       }
-      if (this.boss && distanceSq(this.player, this.boss) <= Math.pow(C.PULSE.radius + this.boss.radius, 2)) {
+      if (this.boss && distanceSq(source, this.boss) <= Math.pow(C.PULSE.radius + this.boss.radius, 2)) {
         this.damageBoss(C.PULSE.damage * (this.boss.weakPhase ? 1.5 : 1));
       }
       for (const projectile of this.enemyProjectiles) {
-        if (distanceSq(this.player, projectile) <= C.PULSE.radius * C.PULSE.radius) projectile.dead = true;
+        if (distanceSq(source, projectile) <= C.PULSE.radius * C.PULSE.radius) projectile.dead = true;
       }
     }
 
@@ -318,21 +380,27 @@
       }
 
       for (const projectile of this.enemyProjectiles) {
-        if (!projectile.dead && collides(projectile, this.player, C.WORLD.collisionForgiveness)) {
-          projectile.dead = true;
-          this.player.takeDamage(projectile.damage, this);
+        for (const player of this.players) {
+          if (!projectile.dead && !player.dead && collides(projectile, player, C.WORLD.collisionForgiveness)) {
+            projectile.dead = true;
+            player.takeDamage(projectile.damage, this);
+          }
         }
       }
 
       for (const enemy of this.enemies) {
-        if (!enemy.dead && collides(enemy, this.player, .68)) {
-          this.player.takeDamage(enemy.contactDamage, this);
-          this.destroyEnemy(enemy, false, true);
+        for (const player of this.players) {
+          if (!enemy.dead && !player.dead && collides(enemy, player, .68)) {
+            player.takeDamage(enemy.contactDamage, this);
+            this.destroyEnemy(enemy, false, true);
+          }
         }
       }
 
       for (const powerup of this.powerups) {
-        if (!powerup.dead && collides(powerup, this.player, 1.35)) powerup.apply(this.player, this);
+        for (const player of this.players) {
+          if (!powerup.dead && !player.dead && collides(powerup, player, 1.35)) powerup.apply(player, this);
+        }
       }
     }
 
@@ -397,12 +465,19 @@
     }
 
     updateHUD() {
-      const healthPercent = clamp(this.player.health / C.PLAYER.maxHealth * 100, 0, 100);
-      const shieldPercent = clamp(this.player.shield / C.PLAYER.maxShield * 100, 0, 100);
+      const local = this.getLocalPlayer();
+      const healthPercent = clamp(local.health / C.PLAYER.maxHealth * 100, 0, 100);
+      const shieldPercent = clamp(local.shield / C.PLAYER.maxShield * 100, 0, 100);
       this.ui["health-fill"].style.width = `${healthPercent}%`;
       this.ui["shield-fill"].style.width = `${shieldPercent}%`;
-      this.ui["health-text"].textContent = Math.ceil(this.player.health);
-      this.ui["shield-text"].textContent = Math.ceil(this.player.shield);
+      this.ui["health-text"].textContent = Math.ceil(local.health);
+      this.ui["shield-text"].textContent = Math.ceil(local.shield);
+      if (this.onlineRole && this.players.length > 1) {
+        const wingmate = this.players[this.localPlayerIndex === 0 ? 1 : 0];
+        const percent = clamp(wingmate.health / C.PLAYER.maxHealth * 100, 0, 100);
+        this.ui["wingmate-health"].style.width = `${percent}%`;
+        this.ui["wingmate-health-text"].textContent = wingmate.dead ? "DOWN" : Math.ceil(wingmate.health);
+      }
       this.ui["score-text"].textContent = this.score.toLocaleString();
       this.ui["combo-text"].textContent = this.combo > 1 ? `COMBO x${this.combo}` : "";
       const pulsePercent = clamp(this.pulseEnergy / C.PULSE.maxEnergy * 100, 0, 100);
@@ -413,10 +488,10 @@
       if (this.boss) this.ui["boss-fill"].style.width = `${clamp(this.boss.health / this.boss.maxHealth * 100, 0, 100)}%`;
 
       const buffs = [];
-      if (this.player.rapidFire > 0) buffs.push(`<span>RAPID FIRE</span> ${Math.ceil(this.player.rapidFire)}s`);
-      if (this.player.tripleLaser > 0) buffs.push(`<span>TRIPLE LASER</span> ${Math.ceil(this.player.tripleLaser)}s`);
-      if (this.player.invincible > 0) buffs.push(`<span>INVINCIBLE</span> ${Math.ceil(this.player.invincible)}s`);
-      if (this.player.droneTime > 0) buffs.push(`<span>DRONE ONLINE</span> ${Math.ceil(this.player.droneTime)}s`);
+      if (local.rapidFire > 0) buffs.push(`<span>RAPID FIRE</span> ${Math.ceil(local.rapidFire)}s`);
+      if (local.tripleLaser > 0) buffs.push(`<span>TRIPLE LASER</span> ${Math.ceil(local.tripleLaser)}s`);
+      if (local.invincible > 0) buffs.push(`<span>INVINCIBLE</span> ${Math.ceil(local.invincible)}s`);
+      if (local.droneTime > 0) buffs.push(`<span>DRONE ONLINE</span> ${Math.ceil(local.droneTime)}s`);
       this.ui["powerup-status"].innerHTML = buffs.join("<br>");
     }
 
@@ -436,8 +511,9 @@
       if (this.state !== "playing") return;
       this.state = "gameover";
       this.audio.setScene("menu");
-      this.effects.burst(this.player.x, this.player.y, "#ffb35a", 55, 350);
-      this.effects.wave(this.player.x, this.player.y, 150, "#ff708d");
+      const local = this.getLocalPlayer();
+      this.effects.burst(local.x, local.y, "#ffb35a", 55, 350);
+      this.effects.wave(local.x, local.y, 150, "#ff708d");
       this.audio.play("explosion");
       this.ui.hud.classList.add("hidden");
       this.ui["final-score"].textContent = this.score.toLocaleString();
@@ -477,8 +553,10 @@
         for (const projectile of this.enemyProjectiles) projectile.draw(ctx);
         for (const enemy of this.enemies) enemy.draw(ctx, this.backgroundTime);
         if (this.boss) this.boss.draw(ctx, this.backgroundTime);
-        if (!this.player.dead) this.player.draw(ctx, this.backgroundTime);
-        if (!this.player.dead && this.player.droneTime > 0) this.companion.draw(ctx, this.backgroundTime);
+        for (const player of this.players) if (!player.dead) player.draw(ctx, this.backgroundTime);
+        this.players.forEach((player, index) => {
+          if (!player.dead && player.droneTime > 0 && this.companions[index]) this.companions[index].draw(ctx, this.backgroundTime);
+        });
       } else {
         this.drawMenuShips(ctx);
       }
