@@ -127,3 +127,42 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Neon Ronin: UI shares its palette with js/theme.js. */
+:root { --cyan:#56E7F2; --blue:#24334A; --pink:#FF625A; --gold:#FFC66D; --panel:rgba(7,11,24,.94); --line:#3b5265; }
+#game-shell { background:#070B18; }
+.overlay { background:rgba(3,8,17,.48); backdrop-filter:none; overflow-y:auto; }
+.menu-card { border-radius:2px; border-color:var(--line); background:linear-gradient(135deg,rgba(24,39,55,.97),rgba(7,11,24,.96)); box-shadow:0 24px 70px #0008; }
+.menu-card::before,.menu-card::after { border-radius:0; width:22px; height:22px; color:var(--cyan); }
+h1,h2 { text-shadow:none; font-style:normal; }
+h1 { color:#E8EDF2; letter-spacing:-2px; line-height:.92; }
+h1 span { color:#E8EDF2; -webkit-text-stroke:0; letter-spacing:4px; }
+.theme-subtitle { color:var(--gold); font-size:16px; letter-spacing:8px; margin:18px 0 22px; font-weight:700; }
+.eyebrow { color:#91ADB9; font-size:10px; letter-spacing:3px; margin-bottom:23px; }
+.tagline { color:#B3C3CC; line-height:1.6; }
+.primary-button,.secondary-button,.icon-button,.instruction,.final-score,.stat-grid div { border-radius:2px; box-shadow:none; }
+.primary-button { background:var(--cyan); color:#070B18; border-color:var(--cyan); }
+.secondary-button,.icon-button { background:#132030; border-color:#405366; }
+.primary-button:hover,.secondary-button:hover { transform:none; }
+button:focus-visible { outline:3px solid var(--gold); outline-offset:4px; }
+.mouse-note { color:#A3B6C2; }
+.health-fill { background:var(--gold); box-shadow:none; }
+.shield-fill { background:var(--cyan); box-shadow:none; }
+.score-panel strong { font-family:monospace; font-variant-numeric:tabular-nums; color:#E8EDF2; }
+.boss-hud { color:var(--pink); text-shadow:none; font-size:11px; }
+.boss-meter { border-color:var(--pink); background:#070B18; }
+.boss-meter i { background:var(--pink); box-shadow:none; }
+.pulse-button { left:auto; right:20px; border-radius:2px; background:#101D2E; }
+.pulse-button.ready { animation:none; box-shadow:0 0 0 2px var(--cyan); }
+.pulse-orb { box-shadow:none; border-color:var(--cyan); background:#070B18; }
+.pulse-orb i { background:var(--cyan); }
+.powerup-status { right:auto; left:20px; text-align:left; }
+#toast { font-size:clamp(20px,3vw,32px); text-shadow:0 2px 4px #000; }
+@media(min-width:1000px) { #main-menu { justify-items:start; padding-left:15%; } .hero-card { width:440px; } }
+@media(max-width:620px),(max-height:650px) {
+  .pulse-button { left:auto; right:10px; }
+  .powerup-status { right:auto; left:12px; }
+  .boss-hud { top:108px; width:60vw; }
+  .theme-subtitle { margin:12px 0; }
+}
+@media(max-height:540px) { .overlay { place-items:start center; } .menu-card { margin:auto; } }

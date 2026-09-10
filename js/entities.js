@@ -28,20 +28,16 @@
     }
 
     draw(ctx) {
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      ctx.rotate(Math.atan2(this.vy, this.vx) + Math.PI / 2);
-      ctx.globalCompositeOperation = "lighter";
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = this.fromBoss ? 20 : 13;
-      ctx.fillStyle = this.color;
-      ctx.beginPath();
-      ctx.roundRect(-this.radius * 0.55, -this.radius * 2.2, this.radius * 1.1, this.radius * 4.4, this.radius);
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.beginPath();
-      ctx.arc(0, 0, this.radius * 0.42, 0, Math.PI * 2);
-      ctx.fill();
+      const T=Starfall.THEME; ctx.save(); ctx.translate(this.x,this.y);
+      const color=this.friendly?T.cyan:T.coral;
+      if(this.friendly) {
+        ctx.rotate(Math.atan2(this.vy,this.vx)+Math.PI/2);
+        ctx.fillStyle=color; ctx.fillRect(-2,-this.radius*2,4,this.radius*4);
+        ctx.fillStyle=T.ivory; ctx.fillRect(-.75,-this.radius*2,1.5,this.radius*4);
+      } else {
+        T.disc(ctx,0,0,this.radius,color); T.disc(ctx,0,0,this.radius*.48,T.navy);
+        T.disc(ctx,0,0,1.5,T.ivory);
+      }
       ctx.restore();
     }
   }
@@ -128,60 +124,14 @@
     }
 
     draw(ctx, time) {
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      ctx.rotate(this.tilt);
-      if (this.damageCooldown > 0 && Math.floor(time * 15) % 2 === 0) ctx.globalAlpha = 0.42;
-
-      if (this.invincible > 0) {
-        ctx.strokeStyle = "#ffe878";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "#ffe878";
-        ctx.shadowBlur = 18;
-        ctx.beginPath();
-        ctx.arc(0, 0, 29 + Math.sin(time * 7) * 2, 0, Math.PI * 2);
-        ctx.stroke();
-      } else if (this.shield > 0 && this.damageCooldown > 0) {
-        ctx.strokeStyle = "#67eaff";
-        ctx.lineWidth = 3;
-        ctx.shadowColor = "#67eaff";
-        ctx.shadowBlur = 18;
-        ctx.beginPath();
-        ctx.arc(0, 0, 27, 0, Math.PI * 2);
-        ctx.stroke();
+      const T=Starfall.THEME;
+      ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(this.tilt);
+      if(this.damageCooldown>0) ctx.globalAlpha=.65;
+      if(this.invincible>0 || (this.shield>0 && this.damageCooldown>0)) {
+        ctx.strokeStyle=this.invincible>0?T.amber:T.cyan; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(0,0,29,0,Math.PI*2); ctx.stroke();
       }
-
-      ctx.globalCompositeOperation = "lighter";
-      const flame = 14 + Math.sin(time * 28) * 4;
-      const engineGlow = ctx.createLinearGradient(0, 12, 0, 35);
-      engineGlow.addColorStop(0, "#ffffff");
-      engineGlow.addColorStop(.3, "#57f5ff");
-      engineGlow.addColorStop(1, "rgba(55,85,255,0)");
-      ctx.fillStyle = engineGlow;
-      ctx.shadowColor = "#4beaff";
-      ctx.shadowBlur = 18;
-      ctx.beginPath();
-      ctx.moveTo(-7, 13); ctx.lineTo(0, 15 + flame); ctx.lineTo(7, 13); ctx.closePath(); ctx.fill();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.shadowBlur = 0;
-
-      const hull = ctx.createLinearGradient(-20, -20, 20, 20);
-      hull.addColorStop(0, "#d8fbff"); hull.addColorStop(.45, "#7899cf"); hull.addColorStop(1, "#273466");
-      ctx.fillStyle = hull;
-      ctx.strokeStyle = "#80efff";
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(0, -27); ctx.lineTo(8, -12); ctx.lineTo(24, 9); ctx.lineTo(22, 17); ctx.lineTo(7, 12); ctx.lineTo(0, 21); ctx.lineTo(-7, 12); ctx.lineTo(-22, 17); ctx.lineTo(-24, 9); ctx.lineTo(-8, -12); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#152154";
-      ctx.beginPath(); ctx.moveTo(0, -19); ctx.lineTo(7, 2); ctx.lineTo(0, 9); ctx.lineTo(-7, 2); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#8cfcff";
-      ctx.shadowColor = "#55eaff"; ctx.shadowBlur = 10;
-      ctx.beginPath(); ctx.ellipse(0, -3, 4.2, 8.5, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#ff68d4";
-      ctx.fillRect(-20, 8, 7, 2); ctx.fillRect(13, 8, 7, 2);
-      ctx.restore();
+      T.ship(ctx,'player',time); ctx.restore();
     }
   }
 
@@ -260,37 +210,11 @@
     }
 
     draw(ctx, time) {
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      const scale = 1 + Math.sin(this.age * 4 + this.phase) * 0.025;
-      ctx.scale(scale, scale);
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = this.color;
-      ctx.lineWidth = 1.4;
-      const grad = ctx.createLinearGradient(-25, -20, 25, 20);
-      grad.addColorStop(0, "#752b68"); grad.addColorStop(.5, "#39285d"); grad.addColorStop(1, "#181b3d");
-      ctx.fillStyle = grad;
-
-      if (this.type === "scout") {
-        ctx.beginPath(); ctx.moveTo(0, 18); ctx.lineTo(-17, -10); ctx.lineTo(-7, -15); ctx.lineTo(0, -8); ctx.lineTo(7, -15); ctx.lineTo(17, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
-      } else if (this.type === "zigzag") {
-        ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(-22, 3); ctx.lineTo(-16, -13); ctx.lineTo(-4, -8); ctx.lineTo(0, -17); ctx.lineTo(4, -8); ctx.lineTo(16, -13); ctx.lineTo(22, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
-      } else if (this.type === "heavy") {
-        ctx.beginPath(); ctx.moveTo(0, 25); ctx.lineTo(-25, 13); ctx.lineTo(-27, -9); ctx.lineTo(-13, -22); ctx.lineTo(13, -22); ctx.lineTo(27, -9); ctx.lineTo(25, 13); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = "#11172f"; ctx.fillRect(-17, -5, 34, 13);
-        ctx.fillStyle = "#ffb15e"; ctx.fillRect(-21, 10, 7, 4); ctx.fillRect(14, 10, 7, 4);
-      } else {
-        ctx.rotate(Math.sin(time * 2 + this.phase) * .08);
-        ctx.beginPath(); ctx.moveTo(0, 23); ctx.lineTo(-11, 7); ctx.lineTo(-25, 0); ctx.lineTo(-13, -16); ctx.lineTo(0, -9); ctx.lineTo(13, -16); ctx.lineTo(25, 0); ctx.lineTo(11, 7); ctx.closePath(); ctx.fill(); ctx.stroke();
-      }
-      ctx.fillStyle = this.color;
-      ctx.shadowBlur = 14;
-      ctx.beginPath(); ctx.arc(0, this.type === "heavy" ? -5 : 0, this.type === "heavy" ? 7 : 5, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-      if (this.health < this.maxHealth && this.type !== "scout") {
-        ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(-this.radius, -this.radius - 10, this.radius * 2, 4);
-        ctx.fillStyle = this.color; ctx.fillRect(-this.radius, -this.radius - 10, this.radius * 2 * (this.health / this.maxHealth), 4);
+      const T=Starfall.THEME;
+      ctx.save(); ctx.translate(this.x,this.y); T.ship(ctx,this.type,time);
+      if(this.health<this.maxHealth && this.type!=='scout') {
+        ctx.fillStyle=T.navy; ctx.fillRect(-this.radius,-this.radius-10,this.radius*2,3);
+        ctx.fillStyle=T.coral; ctx.fillRect(-this.radius,-this.radius-10,this.radius*2*this.health/this.maxHealth,3);
       }
       ctx.restore();
     }
@@ -365,36 +289,8 @@
     }
 
     draw(ctx, time) {
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      const hover = Math.sin(time * 2.2) * 3;
-      ctx.translate(0, hover);
-      ctx.shadowColor = this.weakPhase ? "#ffdf70" : "#d957ff";
-      ctx.shadowBlur = this.weakPhase ? 28 : 18;
-      const hull = ctx.createLinearGradient(-70, -45, 70, 55);
-      hull.addColorStop(0, "#8a3faf"); hull.addColorStop(.45, "#342657"); hull.addColorStop(1, "#12162f");
-      ctx.fillStyle = hull;
-      ctx.strokeStyle = this.weakPhase ? "#ffe072" : "#ef77f1";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 66); ctx.lineTo(-22, 35); ctx.lineTo(-67, 29); ctx.lineTo(-88, -4); ctx.lineTo(-51, -30); ctx.lineTo(-20, -19); ctx.lineTo(0, -48); ctx.lineTo(20, -19); ctx.lineTo(51, -30); ctx.lineTo(88, -4); ctx.lineTo(67, 29); ctx.lineTo(22, 35); ctx.closePath();
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#151431";
-      ctx.beginPath(); ctx.moveTo(-63, -4); ctx.lineTo(-25, -13); ctx.lineTo(-15, 17); ctx.lineTo(-51, 19); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(63, -4); ctx.lineTo(25, -13); ctx.lineTo(15, 17); ctx.lineTo(51, 19); ctx.closePath(); ctx.fill();
-      const core = this.weakPhase ? "#ffe872" : "#e652e8";
-      ctx.fillStyle = core;
-      ctx.shadowColor = core; ctx.shadowBlur = 25;
-      ctx.beginPath(); ctx.arc(0, 5, this.weakPhase ? 14 + Math.sin(time * 12) * 2 : 10, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, 5, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = "rgba(255,150,245,.55)";
-      ctx.beginPath(); ctx.arc(0, 5, 31 + Math.sin(time * 2) * 3, 0, Math.PI * 2); ctx.stroke();
-      if (this.entering) {
-        ctx.globalAlpha = .5 + Math.sin(time * 10) * .25;
-        ctx.fillStyle = "#fff"; ctx.fillRect(-90, -2, 180, 3);
-      }
-      ctx.restore();
+      ctx.save(); ctx.translate(this.x,this.y);
+      Starfall.THEME.ship(ctx,'boss',time,this.weakPhase); ctx.restore();
     }
   }
 
@@ -439,21 +335,10 @@
     }
 
     draw(ctx) {
-      const data = POWERUPS[this.type];
-      ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.age * .7);
-      ctx.shadowColor = data.color; ctx.shadowBlur = 18;
-      ctx.strokeStyle = data.color; ctx.lineWidth = 2;
-      ctx.fillStyle = "rgba(15,22,67,.88)";
-      ctx.beginPath();
-      for (let i = 0; i < 6; i += 1) {
-        const a = i * Math.PI / 3 - Math.PI / 2;
-        const px = Math.cos(a) * 18, py = Math.sin(a) * 18;
-        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-      }
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.rotate(-this.age * .7);
-      ctx.fillStyle = "#fff"; ctx.font = "900 17px 'Exo 2', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(data.icon, 0, 0);
-      ctx.restore();
+      const T=Starfall.THEME, data=POWERUPS[this.type];
+      ctx.save(); ctx.translate(this.x,this.y);
+      T.poly(ctx,[[0,-19],[17,-9],[17,9],[0,19],[-17,9],[-17,-9]],T.navy,data.color);
+      T.icon(ctx,this.type,data.color); ctx.restore();
     }
   }
 
@@ -478,12 +363,7 @@
     }
 
     draw(ctx, time) {
-      ctx.save(); ctx.translate(this.x, this.y + Math.sin(time * 5) * 2);
-      ctx.shadowColor = "#ff76d7"; ctx.shadowBlur = 11;
-      ctx.fillStyle = "#38234f"; ctx.strokeStyle = "#ff85d9"; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(11, 0); ctx.lineTo(5, 9); ctx.lineTo(-5, 9); ctx.lineTo(-11, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
+      ctx.save(); ctx.translate(this.x,this.y); Starfall.THEME.ship(ctx,'drone',time); ctx.restore();
     }
   }
 
