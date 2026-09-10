@@ -1,0 +1,20 @@
+#boss-tactical-hint { display:block; margin-top:5px; min-height:12px; font-size:9px; letter-spacing:1.2px; color:#9eb8c3; text-shadow:0 0 7px rgba(0,0,0,.8); }
+
+.boss-hud.boss-vulnerable #boss-tactical-hint { color:var(--gold); text-shadow:0 0 9px var(--gold); }
+.boss-hud.boss-vulnerable .boss-meter { border-color:var(--gold); box-shadow:0 0 14px rgba(255,198,109,.24); }
+.boss-hud.boss-vulnerable .boss-meter i { background:linear-gradient(90deg,var(--gold),#fff0a0); box-shadow:0 0 14px var(--gold); }
+
+.boss-hud.boss-weak-hit .boss-meter { animation:bossWeakPulse .18s ease-out; }
+.boss-hud.boss-special-hit .boss-meter { animation:bossSpecialPulse .34s ease-out; }
+
+@keyframes bossWeakPulse {
+  50% { transform:scaleX(1.025); filter:brightness(1.55); }
+}
+
+@keyframes bossSpecialPulse {
+  50% { transform:scaleX(1.05); filter:brightness(1.9); }
+}
+
+@media (max-width:620px), (max-height:650px) {
+  #boss-tactical-hint { margin-top:3px; font-size:7px; letter-spacing:.7px; line-height:1.1; }
+}
