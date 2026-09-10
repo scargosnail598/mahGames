@@ -1,77 +1,111 @@
-/* Mobile Pulse Blast: compact top-right status, gesture-only activation on touch. */
+/* Mobile Pulse Blast: circular top-right charge indicator, gesture-only activation. */
 #mobile-pulse-indicator { display:none; }
 
-/* The old Pulse button is no longer part of gameplay UI. Desktop keeps
-   click-anywhere Pulse behavior; touch uses double tap. */
+/* The legacy clickable Pulse control is retired; touch uses double tap. */
 #pulse-button { display:none !important; }
 
 @media (pointer: coarse), (hover: none) {
   #mobile-pulse-indicator {
+    --pulse-charge: 0%;
     position: absolute;
-    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    top: calc(env(safe-area-inset-top, 0px) + 58px);
     right: calc(env(safe-area-inset-right, 0px) + 10px);
     z-index: 5;
     display: grid;
-    grid-template-columns: auto auto;
-    align-items: center;
-    gap: 1px 7px;
-    min-width: 122px;
-    padding: 6px 8px;
-    border: 1px solid rgba(86,231,242,.28);
-    border-radius: 2px;
-    background: rgba(7,11,24,.58);
-    color: #8ea7b3;
-    text-align: right;
+    place-items: center;
+    width: 66px;
+    height: 66px;
+    border: 2px solid rgba(86,231,242,.48);
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(7,11,24,.7);
+    color: #d7e5e9;
     font-family: monospace;
+    text-align: center;
     pointer-events: none;
-    backdrop-filter: blur(2px);
+    box-shadow: inset 0 0 12px rgba(36,51,74,.7), 0 0 8px rgba(86,231,242,.08);
+  }
+
+  #mobile-pulse-indicator::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--pulse-charge);
+    background: linear-gradient(180deg, rgba(159,250,255,.78), rgba(86,231,242,.88));
+    box-shadow: 0 -4px 14px rgba(86,231,242,.22);
+    transition: height .16s linear;
+  }
+
+  #mobile-pulse-indicator::after {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 50%;
+  }
+
+  #mobile-pulse-indicator .pulse-indicator-content {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    line-height: 1.02;
+    text-shadow: 0 1px 3px rgba(0,0,0,.9);
   }
 
   #mobile-pulse-indicator span {
-    color: #6f8b98;
-    font-size: 8px;
-    letter-spacing: 1.5px;
+    font-size: 7px;
+    letter-spacing: 1.4px;
+    color: #9eb8c3;
   }
 
   #mobile-pulse-indicator strong {
-    color: #d7e5e9;
-    font-size: 10px;
-    letter-spacing: .5px;
+    margin-top: 2px;
+    font-size: 11px;
+    letter-spacing: .3px;
+    color: #f1fbff;
   }
 
   #mobile-pulse-indicator small {
-    grid-column: 1 / -1;
-    color: #657d89;
-    font-size: 7px;
-    letter-spacing: .7px;
+    margin-top: 2px;
+    font-size: 6px;
+    letter-spacing: .65px;
+    color: #9eb8c3;
   }
 
   #mobile-pulse-indicator.ready {
-    border-color: #56E7F2;
-    background: rgba(9,35,43,.78);
-    box-shadow: 0 0 12px rgba(86,231,242,.18);
+    border-color: #9ffaff;
+    background: rgba(7,26,31,.78);
+    box-shadow: inset 0 0 14px rgba(86,231,242,.2), 0 0 0 2px rgba(86,231,242,.12), 0 0 18px rgba(86,231,242,.5);
+  }
+
+  #mobile-pulse-indicator.ready::before {
+    background: linear-gradient(180deg, rgba(190,255,255,.96), rgba(86,231,242,.96));
   }
 
   #mobile-pulse-indicator.ready span,
   #mobile-pulse-indicator.ready strong,
   #mobile-pulse-indicator.ready small {
-    color: #9ffaff;
+    color: #071018;
+    text-shadow: 0 1px 1px rgba(255,255,255,.22);
   }
 
   #mobile-pulse-indicator.flash {
-    animation: mobilePulseFlash .32s ease-out;
+    animation: mobilePulseFlash .36s ease-out;
   }
 
   @keyframes mobilePulseFlash {
-    50% { transform: scale(1.06); filter: brightness(1.45); }
+    50% { transform: scale(1.1); filter: brightness(1.5); }
   }
 }
 
 @media (max-width: 420px) {
   #mobile-pulse-indicator {
-    top: calc(env(safe-area-inset-top, 0px) + 60px);
+    top: calc(env(safe-area-inset-top, 0px) + 56px);
     right: calc(env(safe-area-inset-right, 0px) + 8px);
-    min-width: 112px;
-    padding: 5px 7px;
+    width: 62px;
+    height: 62px;
   }
 }
