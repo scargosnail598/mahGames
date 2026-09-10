@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#090b2b">
+  <title>Starfall Squadron</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="game-shell" aria-label="Starfall Squadron game">
+    <canvas id="game-canvas" aria-label="Space combat play area"></canvas>
+
+    <section id="hud" class="hud hidden" aria-label="Game status">
+      <div class="status-stack">
+        <div class="meter-row">
+          <span class="meter-label">HULL</span>
+          <div class="meter"><i id="health-fill" class="health-fill"></i></div>
+          <strong id="health-text">100</strong>
+        </div>
+        <div class="meter-row">
+          <span class="meter-label">SHIELD</span>
+          <div class="meter"><i id="shield-fill" class="shield-fill"></i></div>
+          <strong id="shield-text">100</strong>
+        </div>
+      </div>
+      <div class="score-panel">
+        <span>SCORE</span>
+        <strong id="score-text">0</strong>
+        <em id="combo-text"></em>
+      </div>
+      <button id="pause-button" class="icon-button" type="button" aria-label="Pause game">
+        <span class="pause-bars" aria-hidden="true"></span><span>PAUSE</span>
+      </button>
+      <div id="powerup-status" class="powerup-status" aria-live="polite"></div>
+      <div id="boss-hud" class="boss-hud hidden">
+        <span>VOID SENTINEL</span>
+        <div class="boss-meter"><i id="boss-fill"></i></div>
+      </div>
+      <button id="pulse-button" class="pulse-button" type="button" aria-label="Activate Pulse Blast">
+        <span class="pulse-orb"><i id="pulse-fill"></i><b>CLICK</b></span>
+        <span><strong>PULSE BLAST</strong><small id="pulse-label">CHARGING 0%</small></span>
+      </button>
+    </section>
+
+    <section id="main-menu" class="overlay visible" aria-label="Main menu">
+      <div class="menu-card hero-card">
+        <div class="eyebrow">ORBITAL DEFENSE UNIT</div>
+        <h1>STARFALL<br><span>SQUADRON</span></h1>
+        <p class="tagline">One pilot. One mouse. A whole galaxy to protect.</p>
+        <button id="play-button" class="primary-button" type="button">PLAY MISSION</button>
+        <button id="how-button" class="secondary-button" type="button">HOW TO PLAY</button>
+        <button id="menu-sound-button" class="secondary-button sound-button" type="button">SOUND: ON</button>
+        <p class="mouse-note">Designed for comfortable, mouse-only play</p>
+      </div>
+    </section>
+
+    <section id="how-menu" class="overlay" aria-label="How to play">
+      <div class="menu-card info-card">
+        <div class="eyebrow">PILOT BRIEFING</div>
+        <h2>HOW TO PLAY</h2>
+        <div class="instruction-grid">
+          <div class="instruction"><span class="instruction-icon">➜</span><p><strong>STEER</strong>Move your mouse and your fighter glides toward it.</p></div>
+          <div class="instruction"><span class="instruction-icon">✦</span><p><strong>AUTO-FIRE</strong>Your lasers fire automatically while you fly.</p></div>
+          <div class="instruction"><span class="instruction-icon">◉</span><p><strong>PULSE BLAST</strong>When the big meter is full, click anywhere to unleash it.</p></div>
+          <div class="instruction"><span class="instruction-icon">⬡</span><p><strong>SURVIVE</strong>Dodge bright enemy fire and fly into power-ups.</p></div>
+        </div>
+        <button id="how-back-button" class="primary-button" type="button">GOT IT!</button>
+      </div>
+    </section>
+
+    <section id="pause-menu" class="overlay" aria-label="Paused menu">
+      <div class="menu-card compact-card">
+        <div class="eyebrow">SYSTEMS HOLDING</div>
+        <h2>PAUSED</h2>
+        <button id="continue-button" class="primary-button" type="button">CONTINUE</button>
+        <button id="restart-button" class="secondary-button" type="button">RESTART</button>
+        <button id="pause-main-button" class="secondary-button" type="button">MAIN MENU</button>
+        <button id="pause-sound-button" class="secondary-button sound-button" type="button">SOUND: ON</button>
+      </div>
+    </section>
+
+    <section id="game-over-menu" class="overlay" aria-label="Game over">
+      <div class="menu-card results-card">
+        <div class="eyebrow">MISSION COMPLETE</div>
+        <h2>GREAT FLYING!</h2>
+        <div class="final-score"><span>FINAL SCORE</span><strong id="final-score">0</strong></div>
+        <div class="stat-grid">
+          <div><strong id="final-kills">0</strong><span>ENEMIES</span></div>
+          <div><strong id="final-time">0:00</strong><span>SURVIVED</span></div>
+          <div><strong id="final-combo">x1</strong><span>BEST COMBO</span></div>
+        </div>
+        <p id="result-message">The squadron is proud of you, pilot.</p>
+        <button id="again-button" class="primary-button" type="button">PLAY AGAIN</button>
+        <button id="over-main-button" class="secondary-button" type="button">MAIN MENU</button>
+      </div>
+    </section>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
