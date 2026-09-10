@@ -1,39 +1,73 @@
 /* Main-menu settings consolidation and viewport-fit overrides. */
 
 #main-menu {
-  padding: clamp(10px, 2vh, 20px);
-  overflow: hidden;
+  padding: clamp(8px, 1.5vh, 16px);
+  overflow: hidden !important;
+  place-items: center;
 }
 
+/* style.css historically makes .hero-card its own scroll container.
+   The landing card must instead fit the viewport and never scroll. */
 #main-menu .hero-card {
-  width: min(510px, 94vw);
-  max-height: calc(100dvh - 20px);
-  padding: clamp(18px, 3vh, 34px) clamp(20px, 3vw, 38px);
+  width: min(510px, calc(100vw - 20px));
+  max-width: calc(100vw - 20px);
+  height: auto;
+  max-height: calc(100dvh - 16px);
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  padding: clamp(14px, 2.4vh, 28px) clamp(18px, 3vw, 34px);
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-#main-menu .eyebrow { margin-bottom: 5px; }
+#main-menu .eyebrow { margin-bottom: 4px; }
 #main-menu h1 {
-  font-size: clamp(38px, 7.2vh, 66px);
-  margin-bottom: 7px;
+  font-size: clamp(36px, 6.6vh, 60px);
+  margin-bottom: 5px;
 }
-#main-menu .theme-subtitle,
-#main-menu .mission-coordinate { margin-top: 2px; }
-#main-menu .tagline { margin: clamp(8px, 1.5vh, 15px) 0 clamp(10px, 1.8vh, 18px); }
+#main-menu .theme-subtitle {
+  margin: clamp(7px, 1.2vh, 12px) 0;
+}
+#main-menu .mission-coordinate { margin: 0 0 5px; }
+#main-menu .tagline {
+  margin: clamp(5px, 1vh, 10px) 0 clamp(7px, 1.2vh, 12px);
+}
 #main-menu .primary-button,
 #main-menu .secondary-button {
-  min-height: clamp(42px, 6.2vh, 54px);
-  margin: 4px 0;
+  min-height: clamp(38px, 5.7vh, 48px);
+  margin: 3px 0;
+  flex: 0 0 auto;
 }
-#main-menu .mouse-note { margin: 8px 0 -4px; }
+#main-menu .mouse-note { margin: 6px 0 -2px; }
 
 /* Keep the solo fighter selector compact enough to fit the landing screen. */
-#solo-ship-picker .ship-picker { margin: 0 0 8px; }
-#solo-ship-picker .ship-grid { gap: 6px; }
-#solo-ship-picker .ship-choice { min-height: 0; }
-#solo-ship-picker .fighter-preview { max-height: clamp(42px, 8vh, 70px); }
+#solo-ship-picker {
+  width: 100%;
+  min-width: 0;
+}
+#solo-ship-picker .ship-picker {
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 7px;
+}
+#solo-ship-picker .ship-grid {
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+}
+#solo-ship-picker .ship-choice {
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 3px;
+}
+#solo-ship-picker .fighter-preview {
+  width: 100%;
+  max-width: 100%;
+  height: clamp(40px, 7vh, 62px);
+  max-height: clamp(40px, 7vh, 62px);
+}
 
 .settings-card {
   width: min(430px, 92vw);
@@ -48,22 +82,53 @@
 .settings-group .sound-button { margin: 0; }
 .settings-group .music-control { margin: 0; }
 
+@media (max-width: 620px) {
+  #main-menu {
+    padding: 6px;
+  }
+  #main-menu .hero-card {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  #solo-ship-picker .ship-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  #solo-ship-picker .ship-choice small { display: none; }
+}
+
 @media (max-height: 760px) {
-  #main-menu .hero-card { padding-top: 14px; padding-bottom: 14px; }
+  #main-menu .hero-card { padding-top: 10px; padding-bottom: 10px; }
   #main-menu .eyebrow,
   #main-menu .mission-coordinate,
   #main-menu .mouse-note { display: none; }
-  #main-menu .tagline { margin: 6px 0 10px; font-size: 12px; }
-  #main-menu h1 { font-size: clamp(34px, 6.6vh, 50px); }
-  #solo-ship-picker .fighter-preview { max-height: 46px; }
+  #main-menu .tagline { margin: 4px 0 7px; font-size: 12px; }
+  #main-menu .theme-subtitle { margin: 6px 0; }
+  #main-menu h1 { font-size: clamp(32px, 6vh, 46px); }
+  #solo-ship-picker .fighter-preview {
+    height: 40px;
+    max-height: 40px;
+  }
+  #solo-ship-picker .ship-choice {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
   #main-menu .primary-button,
-  #main-menu .secondary-button { min-height: 40px; }
+  #main-menu .secondary-button { min-height: 36px; margin: 2px 0; }
 }
 
 @media (max-height: 620px) {
-  #main-menu .theme-subtitle { display: none; }
+  #main-menu .theme-subtitle,
   #main-menu .tagline { display: none; }
-  #solo-ship-picker .fighter-preview { max-height: 36px; }
+  #main-menu h1 { font-size: clamp(28px, 5.6vh, 38px); }
+  #solo-ship-picker .ship-picker legend { margin-bottom: 4px; }
+  #solo-ship-picker .fighter-preview {
+    height: 30px;
+    max-height: 30px;
+  }
+  #solo-ship-picker .ship-choice strong { margin-top: 1px; }
   #main-menu .primary-button,
-  #main-menu .secondary-button { min-height: 36px; margin: 2px 0; }
+  #main-menu .secondary-button { min-height: 32px; margin: 1px 0; }
 }
