@@ -3,11 +3,11 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "0.0.0.0:8080:8080"
     environment:
       PORT: "8080"
       HOST: "0.0.0.0"
-      # Set this when publishing behind HTTPS, for example:
+      # Set this to the public ArvanCloud hostname when publishing, for example:
       # ALLOWED_ORIGIN: "https://game.example.com"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]

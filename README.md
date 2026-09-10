@@ -33,9 +33,9 @@ docker compose up -d --build
 curl http://127.0.0.1:8080/healthz
 ```
 
-The compose file binds the game to `127.0.0.1:8080`, ready for a reverse proxy. Copy `deploy/nginx.conf.example`, replace `game.example.com`, and use a valid TLS certificate. WebSocket connections use the same public hostname and `/ws` path.
+The compose file publishes the game on `0.0.0.0:8080`, so an external reverse proxy or ArvanCloud can reach the origin through the server's public IP. WebSocket connections use the same public hostname and `/ws` path.
 
-For a public deployment, set the exact origin in `compose.yaml`:
+For ArvanCloud, set the origin to the server IP on port `8080`, enable WebSocket support, and allow TCP `8080` through the server firewall. Set `ALLOWED_ORIGIN` in `compose.yaml` to the exact public HTTPS hostname:
 
 ```yaml
 environment:
@@ -51,7 +51,7 @@ docker compose up -d --build
 ## Direct server install
 
 ```bash
-PORT=8080 HOST=127.0.0.1 ALLOWED_ORIGIN=https://game.example.com npm start
+PORT=8080 HOST=0.0.0.0 ALLOWED_ORIGIN=https://game.example.com npm start
 ```
 
 Use systemd, Supervisor or another process manager to keep it running. Terminate TLS at Nginx or another reverse proxy so browsers use HTTPS and `wss://`.
