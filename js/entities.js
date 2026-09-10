@@ -43,7 +43,7 @@
   }
 
   class Player {
-    constructor(x, y) {
+    constructor(x, y, variant) {
       this.x = x;
       this.y = y;
       this.targetX = x;
@@ -60,6 +60,7 @@
       this.droneTime = 0;
       this.tilt = 0;
       this.dead = false;
+      this.variant = variant || 0;
     }
 
     update(dt, game) {
@@ -131,7 +132,14 @@
         ctx.strokeStyle=this.invincible>0?T.amber:T.cyan; ctx.lineWidth=2;
         ctx.beginPath(); ctx.arc(0,0,29,0,Math.PI*2); ctx.stroke();
       }
-      T.ship(ctx,'player',time); ctx.restore();
+      T.ship(ctx,'player',time);
+      if (this.variant === 1) {
+        ctx.fillStyle=T.amber;
+        ctx.fillRect(-18,-4,5,2); ctx.fillRect(13,-4,5,2);
+        ctx.strokeStyle=T.amber; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.arc(0,-3,7,0,Math.PI*2); ctx.stroke();
+      }
+      ctx.restore();
     }
   }
 
@@ -173,8 +181,9 @@
         return;
       }
       if (this.type === "scout") {
-        const dx = game.player.x - this.x;
-        const dy = Math.max(80, game.player.y - this.y);
+        const target = game.getTargetPlayer ? game.getTargetPlayer(this) : game.player;
+        const dx = target.x - this.x;
+        const dy = Math.max(80, target.y - this.y);
         const length = Math.hypot(dx, dy) || 1;
         this.x += (dx / length) * this.speed * 0.3 * dt;
         this.y += this.speed * dt;
@@ -190,7 +199,8 @@
         }
       } else {
         this.y += this.speed * dt;
-        const desired = game.player.x;
+        const target = game.getTargetPlayer ? game.getTargetPlayer(this) : game.player;
+        const desired = target.x;
         this.x += clamp(desired - this.x, -75, 75) * dt * 0.52;
         this.shootTimer -= dt;
         if (this.shootTimer <= 0 && this.y < game.height * .6) {
@@ -203,8 +213,9 @@
     }
 
     fireAtPlayer(game, speed, damage, color) {
-      const dx = game.player.x - this.x;
-      const dy = game.player.y - this.y;
+      const target = game.getTargetPlayer ? game.getTargetPlayer(this) : game.player;
+      const dx = target.x - this.x;
+      const dy = target.y - this.y;
       const length = Math.hypot(dx, dy) || 1;
       game.enemyProjectiles.push(new Projectile(this.x, this.y + this.radius, dx / length * speed, dy / length * speed, false, { damage, color, radius: 7 }));
     }
@@ -262,7 +273,8 @@
     }
 
     aimedFan(game) {
-      const base = Math.atan2(game.player.y - this.y, game.player.x - this.x);
+      const target = game.getTargetPlayer ? game.getTargetPlayer(this) : game.player;
+      const base = Math.atan2(target.y - this.y, target.x - this.x);
       for (let i = -2; i <= 2; i += 1) {
         const angle = base + i * .17;
         game.enemyProjectiles.push(new Projectile(this.x, this.y + 36, Math.cos(angle) * 175, Math.sin(angle) * 175, false, { damage: 12, radius: 9, color: "#ff54c8", fromBoss: true }));
@@ -343,16 +355,18 @@
   }
 
   class CompanionDrone {
-    constructor(side) {
+    constructor(side, playerIndex) {
       this.side = side || 1;
+      this.playerIndex = playerIndex || 0;
       this.x = 0;
       this.y = 0;
       this.fireTimer = 0;
     }
 
     update(dt, game) {
-      const targetX = game.player.x + this.side * 38;
-      const targetY = game.player.y + 14;
+      const player = game.players?.[this.playerIndex] || game.player;
+      const targetX = player.x + this.side * 38;
+      const targetY = player.y + 14;
       this.x += (targetX - this.x) * Math.min(1, dt * 8);
       this.y += (targetY - this.y) * Math.min(1, dt * 8);
       this.fireTimer -= dt;

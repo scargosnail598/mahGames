@@ -23,6 +23,7 @@
           <div class="meter"><i id="shield-fill" class="shield-fill"></i></div>
           <strong id="shield-text">100</strong>
         </div>
+        <div id="wingmate-status" class="wingmate-status hidden"><span>WINGMATE</span><i id="wingmate-health"></i><strong id="wingmate-health-text">100</strong></div>
       </div>
       <div class="score-panel">
         <span>SCORE</span>
@@ -41,6 +42,7 @@
         <span class="pulse-orb"><i id="pulse-fill"></i><b>CLICK</b></span>
         <span><strong>PULSE BLAST</strong><small id="pulse-label">CHARGING 0%</small></span>
       </button>
+      <div id="coop-badge" class="coop-badge hidden"><i></i><span>CO-OP LINK</span><strong id="coop-room-label"></strong></div>
     </section>
 
     <section id="main-menu" class="overlay visible" aria-label="Main menu">
@@ -50,11 +52,35 @@
         <div class="theme-subtitle">NEON RONIN</div>
         <div class="mission-coordinate">夜航 <span>NIGHT FLIGHT / JADE ORBIT</span></div>
         <p class="tagline">One pilot. One mouse. A whole galaxy to protect.</p>
-        <button id="play-button" class="primary-button" type="button">PLAY MISSION</button>
+        <button id="play-button" class="primary-button" type="button">SOLO MISSION</button>
+        <button id="coop-button" class="primary-button coop-entry" type="button">ONLINE CO-OP</button>
         <button id="how-button" class="secondary-button" type="button">HOW TO PLAY</button>
         <button id="menu-sound-button" class="secondary-button sound-button" type="button">SOUND: ON</button>
         <label class="music-control" for="menu-music"><span>MUSIC <small>DISTANT SIGNAL</small></span><input id="menu-music" class="music-volume" type="range" min="0" max="35" step="1" value="12" aria-label="Music volume"><output for="menu-music">12%</output></label>
         <p class="mouse-note">Designed for comfortable, mouse-only play</p>
+      </div>
+    </section>
+
+    <section id="coop-menu" class="overlay" aria-label="Online co-op lobby">
+      <div class="menu-card coop-card">
+        <div class="eyebrow">TWO-PILOT LINK</div>
+        <h2>ONLINE CO-OP</h2>
+        <p class="coop-copy">Create a private room, then send its five-letter code to your wingmate.</p>
+        <div id="coop-actions">
+          <button id="create-room-button" class="primary-button" type="button">CREATE ROOM</button>
+          <div class="join-row">
+            <input id="room-code-input" type="text" maxlength="5" autocomplete="off" spellcheck="false" aria-label="Five-letter room code" placeholder="ROOM CODE">
+            <button id="join-room-button" class="secondary-button" type="button">JOIN</button>
+          </div>
+        </div>
+        <div id="coop-waiting" class="coop-waiting hidden">
+          <span>ROOM CODE</span>
+          <strong id="room-code-display">-----</strong>
+          <button id="copy-room-button" class="secondary-button" type="button">COPY CODE</button>
+          <p>Waiting for the second pilot…</p>
+        </div>
+        <p id="coop-status" class="coop-status" role="status" aria-live="polite">SERVER READY</p>
+        <button id="coop-back-button" class="secondary-button" type="button">BACK</button>
       </div>
     </section>
 
@@ -109,5 +135,6 @@
   <script src="js/effects.js"></script>
   <script src="js/entities.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/online.js"></script>
 </body>
 </html>
