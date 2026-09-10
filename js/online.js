@@ -51,11 +51,22 @@
       this.waiting = document.getElementById("coop-waiting");
       this.input = document.getElementById("room-code-input");
       this.codeDisplay = document.getElementById("room-code-display");
+      const soloPicker = document.getElementById("solo-ship-picker");
+      const picker = document.querySelector(".ship-picker");
+      if (soloPicker && picker) soloPicker.appendChild(picker.cloneNode(true));
       this.shipChoices = Array.from(document.querySelectorAll(".ship-choice"));
+      this.shipChoices.forEach((choice) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 240; canvas.height = 180;
+        canvas.className = "fighter-preview";
+        canvas.setAttribute("aria-hidden", "true");
+        choice.querySelector(".ship-preview").replaceWith(canvas);
+        choice.previewCanvas = canvas;
+      });
       this.shipChoices.forEach((choice) => choice.addEventListener("click", () => {
         this.selectedShip = Number(choice.dataset.ship);
         this.shipChoices.forEach((item) => {
-          const selected = item === choice;
+          const selected = Number(item.dataset.ship) === this.selectedShip;
           item.classList.toggle("selected", selected);
           item.setAttribute("aria-pressed", String(selected));
         });
@@ -173,6 +184,17 @@
     sendPulse() { this.send({ type: "pulse" }); }
 
     tick(now) {
+      if (!document.hidden) this.shipChoices.forEach((choice) => {
+        if (!choice.getClientRects().length) return;
+        const canvas = choice.previewCanvas, ctx = canvas.getContext("2d");
+        const time = Starfall.THEME.reducedMotion.matches ? 0 : now / 1000;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save(); ctx.translate(120, 86 + Math.sin(time * 1.7) * 4);
+        ctx.scale(2.25, 2.25);
+        ctx.rotate(Math.sin(time * .7) * .08);
+        Starfall.THEME.ship(ctx, "player", time, Number(choice.dataset.ship));
+        ctx.restore();
+      });
       if (this.role !== "host" || this.game.onlineRole !== "host" || now - this.lastStateAt < 50) return;
       this.lastStateAt = now;
       this.send({ type: "state", state: this.snapshot() });

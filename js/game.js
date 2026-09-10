@@ -141,6 +141,7 @@
       this.audio.unlock();
       this.audio.setScene('playing');
       this.resetWorld();
+      this.player.variant = window.coopClient ? window.coopClient.selectedShip : 0;
       this.state = "playing";
       this.hideScreens();
       this.ui.hud.classList.remove("hidden");
