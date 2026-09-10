@@ -21,10 +21,18 @@
     if (!game || !canvas) return;
 
     let activeTouchPointer = null;
+    let lastTapAt = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
     const TOUCH_OFFSET_PX = 110;
+    const DOUBLE_TAP_MS = 360;
+    const DOUBLE_TAP_DISTANCE = 90;
+
+    const isTouch = (event) => event.pointerType === "touch" || event.pointerType === "pen";
 
     const applyTouchTarget = (event) => {
-      if (event.pointerType !== "touch" || game.state !== "playing") return;
+      if (!isTouch(event) || game.state !== "playing") return;
       const local = game.getLocalPlayer();
       if (!local) return;
 
@@ -34,8 +42,6 @@
       const touchX = (event.clientX - rect.left) * scaleX;
       const touchY = (event.clientY - rect.top) * scaleY;
 
-      // Keep the fighter visibly above the player's finger while preserving
-      // direct horizontal control. Clamp at the playfield edges.
       const offset = Math.min(TOUCH_OFFSET_PX * scaleY, game.height * 0.18);
       local.targetX = Math.max(30, Math.min(game.width - 30, touchX));
       local.targetY = Math.max(100, Math.min(game.height - 30, touchY - offset));
@@ -45,29 +51,43 @@
       }
     };
 
-    // Capture touch starts before the game's generic canvas pointerdown handler.
-    // This prevents a normal steering touch from consuming Pulse Blast.
     canvas.addEventListener("pointerdown", (event) => {
-      if (event.pointerType !== "touch" || game.state !== "playing") return;
+      if (!isTouch(event) || game.state !== "playing") return;
+
       activeTouchPointer = event.pointerId;
       try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
+
       game.audio.setBackgrounded(false);
       game.audio.unlock();
       applyTouchTarget(event);
+
+      const now = performance.now();
+      const dx = event.clientX - lastTapX;
+      const dy = event.clientY - lastTapY;
+      const closeEnough = (dx * dx + dy * dy) <= DOUBLE_TAP_DISTANCE * DOUBLE_TAP_DISTANCE;
+      const doubleTap = lastTapAt > 0 && (now - lastTapAt) <= DOUBLE_TAP_MS && closeEnough;
+
+      if (doubleTap) {
+        lastTapAt = 0;
+        game.activatePulse();
+      } else {
+        lastTapAt = now;
+        lastTapX = event.clientX;
+        lastTapY = event.clientY;
+      }
+
       event.preventDefault();
       event.stopImmediatePropagation();
     }, true);
 
-    // Registered after game.js, so this touch-specific target wins over the
-    // generic mouse mapping without changing desktop behavior.
     canvas.addEventListener("pointermove", (event) => {
-      if (event.pointerType !== "touch" || event.pointerId !== activeTouchPointer) return;
+      if (!isTouch(event) || event.pointerId !== activeTouchPointer) return;
       applyTouchTarget(event);
       event.preventDefault();
     });
 
     const endTouch = (event) => {
-      if (event.pointerType !== "touch" || event.pointerId !== activeTouchPointer) return;
+      if (!isTouch(event) || event.pointerId !== activeTouchPointer) return;
       activeTouchPointer = null;
       try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
     };
