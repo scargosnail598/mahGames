@@ -4,10 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#070B18">
+  <meta name="google-client-id" content="__GOOGLE_CLIENT_ID__">
   <title>Starfall Squadron — Neon Ronin</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/settings.css">
   <link rel="stylesheet" href="css/environments.css">
+  <link rel="stylesheet" href="css/auth.css">
   <link rel="stylesheet" href="css/mobile-hud.css">
   <link rel="stylesheet" href="css/mobile-pulse.css">
   <link rel="stylesheet" href="css/special-weapon.css">
@@ -53,6 +55,21 @@
 
     <section id="main-menu" class="overlay visible" aria-label="Main menu">
       <div class="menu-card hero-card">
+        <div id="auth-control" class="auth-control hidden">
+          <button id="auth-sign-in" class="auth-trigger hidden" type="button" aria-expanded="false">SIGN IN</button>
+          <button id="auth-identity" class="auth-identity hidden" type="button" aria-expanded="false">
+            <img class="auth-avatar" alt=""><span class="auth-avatar-fallback" aria-hidden="true"></span><strong></strong>
+          </button>
+          <div id="auth-signin-panel" class="auth-panel auth-signin-panel hidden">
+            <strong>SIGN IN</strong>
+            <div id="google-signin-slot"></div>
+            <p id="auth-status" role="status" aria-live="polite"></p>
+          </div>
+          <div id="auth-profile-panel" class="auth-panel auth-profile-panel hidden">
+            <div class="auth-profile-heading"><img class="auth-avatar" alt=""><span class="auth-avatar-fallback" aria-hidden="true"></span><span><strong></strong><small></small></span></div>
+            <button id="auth-sign-out" type="button">SIGN OUT</button>
+          </div>
+        </div>
         <div class="eyebrow">SECTOR 07 / ORBITAL DEFENSE</div>
         <h1>STARFALL<br><span>SQUADRON</span></h1>
         <div class="theme-subtitle">NEON RONIN</div>
@@ -175,6 +192,7 @@
   </main>
 
   <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/theme.js"></script>
   <script src="js/environments.js"></script>
   <script src="js/audio.js"></script>

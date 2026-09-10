@@ -4,6 +4,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { AuthService } = require("./lib/auth.js");
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -12,6 +13,7 @@ const APP_VERSION = process.env.APP_VERSION || "dev";
 const ROOT = __dirname;
 const MAX_MESSAGE = 128 * 1024;
 const rooms = new Map();
+const auth = new AuthService({databasePath:process.env.AUTH_DB_PATH||path.join(ROOT,"data","starfall.sqlite")});
 
 const MIME = {
   ".html":"text/html; charset=utf-8", ".css":"text/css; charset=utf-8",
@@ -19,17 +21,23 @@ const MIME = {
   ".png":"image/png", ".svg":"image/svg+xml", ".ico":"image/x-icon",
 };
 
-function staticHandler(request, response) {
-  if (request.url === "/healthz") {
+function escapeAttribute(value) { return String(value).replace(/[&"<>]/g,character=>({"&":"&amp;","\"":"&quot;","<":"&lt;",">":"&gt;"})[character]); }
+
+async function staticHandler(request, response) {
+  let url;
+  try { url=new URL(request.url,"http://localhost"); }
+  catch (_) { response.writeHead(400); response.end("Bad request"); return; }
+  if (url.pathname === "/healthz") {
     response.writeHead(200, { "content-type":"application/json", "cache-control":"no-store" });
     response.end(JSON.stringify({ ok:true, rooms:rooms.size, version:APP_VERSION }));
     return;
   }
+  if(await auth.handle(request,response,url.pathname))return;
   if (request.method !== "GET" && request.method !== "HEAD") {
     response.writeHead(405, { allow:"GET, HEAD" }); response.end(); return;
   }
   let pathname;
-  try { pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname); }
+  try { pathname = decodeURIComponent(url.pathname); }
   catch (_) { response.writeHead(400); response.end("Bad request"); return; }
   if (pathname === "/") pathname = "/index.html";
   const relative = path.posix.normalize(pathname).replace(/^\/+/, "");
@@ -45,7 +53,9 @@ function staticHandler(request, response) {
       "content-type":MIME[path.extname(filename)] || "application/octet-stream",
       "cache-control":isHtml ? "no-cache, no-store, must-revalidate" : "public, max-age=3600",
       "x-content-type-options":"nosniff",
-      "content-security-policy":"default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "referrer-policy":"strict-origin-when-cross-origin",
+      "cross-origin-opener-policy":"same-origin-allow-popups",
+      "content-security-policy":"default-src 'self'; connect-src 'self' ws: wss: https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: https://*.googleusercontent.com; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; script-src 'self' https://accounts.google.com/gsi/client",
     };
     if (!isHtml) {
       response.writeHead(200,headers);
@@ -56,7 +66,8 @@ function staticHandler(request, response) {
     fs.readFile(filename,"utf8",(readError,source)=>{
       if(readError){response.writeHead(500);response.end("Server error");return;}
       const version=encodeURIComponent(APP_VERSION);
-      const body=Buffer.from(source.replace(/((?:src|href)="(?:css|js)\/[^"?]+)(?:\?[^\"]*)?"/g,`$1?v=${version}"`));
+      const configured=source.replace("__GOOGLE_CLIENT_ID__",escapeAttribute(auth.clientId));
+      const body=Buffer.from(configured.replace(/((?:src|href)="(?:css|js)\/[^"?]+)(?:\?[^\"]*)?"/g,`$1?v=${version}"`));
       response.writeHead(200,{...headers,"content-length":body.length});
       response.end(request.method === "HEAD" ? undefined : body);
     });
@@ -171,7 +182,13 @@ function handle(peer,message) {
   }
 }
 
-const server=http.createServer(staticHandler);
+const server=http.createServer((request,response)=>{
+  staticHandler(request,response).catch(error=>{
+    console.error("Request failed",error);
+    if(!response.headersSent)response.writeHead(500,{"content-type":"application/json; charset=utf-8","cache-control":"no-store"});
+    if(!response.writableEnded)response.end(JSON.stringify({error:"server_error"}));
+  });
+});
 server.on("upgrade",(request,socket)=>{
   const connection=String(request.headers.connection||"").toLowerCase().split(",").map(value=>value.trim());
   if(new URL(request.url,"http://localhost").pathname!=="/ws" || request.headers.upgrade?.toLowerCase()!=="websocket" || !connection.includes("upgrade") || request.headers["sec-websocket-version"]!=="13")return socket.destroy();
@@ -194,4 +211,6 @@ heartbeat.unref();
 
 server.listen(PORT,HOST,()=>console.log(`Starfall co-op listening on http://${HOST}:${server.address().port}`));
 
-module.exports={server,rooms};
+server.on("close",()=>auth.close());
+
+module.exports={server,rooms,auth};

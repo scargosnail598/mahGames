@@ -8,10 +8,17 @@ services:
       PORT: "8080"
       HOST: "0.0.0.0"
       APP_VERSION: "${APP_VERSION:-dev}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      AUTH_DB_PATH: "/app/data/starfall.sqlite"
       # Set this to the public ArvanCloud hostname when publishing, for example:
       # ALLOWED_ORIGIN: "https://game.example.com"
+    volumes:
+      - starfall-data:/app/data
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
       interval: 30s
       timeout: 3s
       retries: 3
+
+volumes:
+  starfall-data:

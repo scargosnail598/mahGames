@@ -13,13 +13,14 @@ A mouse-only vertical arcade shooter with solo play and a simple two-player onli
 - The room creator runs the authoritative game simulation. The Node server relays the second pilot's input and sends snapshots back at 20 Hz. The guest renders at display refresh rate with local movement prediction, entity interpolation, projectile extrapolation and gradual authoritative correction.
 - State packets carry stable entity IDs and monotonic sequence numbers. Old packets are ignored, WebSocket backpressure drops replaceable snapshots, and the co-op badge shows measured guest control latency.
 
-This first version supports exactly two players per room. Rooms are held in memory and disappear when either player disconnects or after six hours. There are no accounts, public room lists, matchmaking or persistent scores.
+This version supports exactly two players per room. Rooms are held in memory and disappear when either player disconnects or after six hours. Optional Google Sign-In provides only a minimal player identity; it is not connected to co-op and there are no public room lists, matchmaking, game history or persistent scores.
 
 ## Run locally
 
-Node.js 22 or newer is the only requirement. The WebSocket server has no npm dependencies.
+Node.js 22.13 or newer is required. Install dependencies and start the server:
 
 ```bash
+npm ci
 npm start
 ```
 
@@ -48,6 +49,48 @@ Then rebuild:
 ```bash
 docker compose up -d --build
 ```
+
+## Optional Google Sign-In
+
+Authentication is optional. If `GOOGLE_CLIENT_ID` is absent, the sign-in control stays hidden and all guest gameplay continues to work.
+
+Current Google Cloud setup:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create or select a project.
+2. Open **Google Auth Platform → Branding** and register the app. Set the application name, support email, authorized production domain, homepage and privacy-policy details as applicable.
+3. Open **Audience**. Choose **External** for general Google accounts or **Internal** for a Google Workspace-only deployment. While the app is in testing, add the Google accounts that may sign in as test users.
+4. Open **Data Access** and keep only the default authentication scopes (`openid`, email and profile). Starfall does not need sensitive Google API scopes.
+5. Open **Clients → Create client**, choose **Web application**, and add exact **Authorized JavaScript origins**. Use `http://localhost:8080` for local development and the exact HTTPS origin such as `https://game.example.com` for production. Do not add a callback path or redirect URI; this integration uses the JavaScript credential callback.
+6. Copy the resulting public client ID (ending in `.apps.googleusercontent.com`) into `GOOGLE_CLIENT_ID`. No Google client secret is used or required.
+7. For public production use, finish the Branding/Audience publishing or verification steps Google shows for the chosen audience and domains.
+
+Local example:
+
+```bash
+GOOGLE_CLIENT_ID=1234567890-example.apps.googleusercontent.com npm start
+```
+
+For Compose, put the value in an uncommitted `.env` file and rebuild:
+
+```dotenv
+GOOGLE_CLIENT_ID=1234567890-example.apps.googleusercontent.com
+```
+
+```bash
+docker compose up -d --build
+```
+
+The Compose service persists SQLite at `/app/data/starfall.sqlite` in the `starfall-data` volume. A direct install defaults to `data/starfall.sqlite`; override it with `AUTH_DB_PATH` when needed. Continue setting `ALLOWED_ORIGIN` to the exact public origin when deployed behind a reverse proxy.
+
+The server verifies each Google ID token's signature, issuer, expiry and audience with Google's official Node.js library before trusting its `sub`, name, email or avatar claims. It then creates an opaque 30-day session in an HttpOnly, SameSite=Lax cookie (`Secure` on HTTPS). Raw session tokens, Google ID tokens and Google access tokens are never stored in SQLite.
+
+Auth API:
+
+- `POST /api/auth/google` — verifies a Google ID token and creates/updates the local user and session.
+- `GET /api/me` — returns the current minimal profile, or HTTP 401 for a guest.
+- `POST /api/logout` — revokes the current local session and clears the cookie.
+
+SQLite creates `users` (`id`, unique `google_sub`, `display_name`, `email`, `avatar_url`, `created_at`, `last_login_at`) and `sessions` (hashed session ID, user reference, creation and expiry timestamps). Authentication remains separate from WebSocket room state.
 
 ## Direct server install
 

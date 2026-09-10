@@ -5,7 +5,12 @@
   "description": "Mouse-only arcade shooter with two-player online co-op",
   "scripts": {
     "start": "node server.js",
-    "test": "node --check server.js && node --check js/game.js && node --check js/entities.js && node --check js/theme.js && node --check js/environments.js && node --check js/online.js && node --test tests/*.test.cjs && node tests/audio-lifecycle.cjs"
+    "test": "node --check server.js && node --check lib/auth.js && node --check js/auth.js && node --check js/game.js && node --check js/entities.js && node --check js/theme.js && node --check js/environments.js && node --check js/online.js && node --test tests/*.test.cjs && node tests/audio-lifecycle.cjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "google-auth-library": "^11.0.2"
+  }
 }

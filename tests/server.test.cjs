@@ -6,7 +6,11 @@ const assert = require("node:assert/strict");
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
 process.env.APP_VERSION = "test-sha";
-const { server, rooms } = require("../server.js");
+process.env.GOOGLE_CLIENT_ID = "test-client.apps.googleusercontent.com";
+process.env.AUTH_DB_PATH = ":memory:";
+const { server, rooms, auth } = require("../server.js");
+auth.verifyGoogleToken=async()=>{throw new Error("invalid token");};
+let sessionCookie="";
 
 function message(socket) {
   return new Promise((resolve, reject) => {
@@ -32,16 +36,54 @@ test.after(async () => {
   await new Promise(resolve=>server.close(resolve));
 });
 
-test("serves the game and health endpoint but not server source", async () => {
+test("guest server startup and gameplay assets remain functional", async () => {
   const base=`http://127.0.0.1:${server.address().port}`;
   const health=await fetch(base+"/healthz");
   assert.equal(health.status,200);assert.deepEqual(await health.json(),{ok:true,rooms:0,version:"test-sha"});
   const index=await fetch(base+"/");
   assert.equal(index.status,200);
-  assert.match(await index.text(),/src="js\/game\.js\?v=test-sha"/);
+  const html=await index.text();
+  assert.match(html,/src="js\/game\.js\?v=test-sha"/);
+  assert.match(html,/content="test-client\.apps\.googleusercontent\.com"/);
+  assert.match(index.headers.get("content-security-policy"),/https:\/\/accounts\.google\.com\/gsi\/client/);
   assert.match(index.headers.get("cache-control"),/no-store/);
   assert.equal((await fetch(base+"/js/game.js")).status,200);
   assert.equal((await fetch(base+"/server.js")).status,403);
+});
+
+test("unauthenticated /api/me returns no user",async()=>{
+  const response=await fetch(`http://127.0.0.1:${server.address().port}/api/me`);
+  assert.equal(response.status,401);assert.deepEqual(await response.json(),{user:null});
+  assert.match(response.headers.get("cache-control"),/no-store/);
+});
+
+test("invalid Google credentials are rejected",async()=>{
+  const response=await fetch(`http://127.0.0.1:${server.address().port}/api/auth/google`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({credential:"malformed"})});
+  assert.equal(response.status,401);assert.deepEqual(await response.json(),{error:"invalid_google_token"});
+  assert.equal(auth.db.prepare("SELECT count(*) AS total FROM users").get().total,0);
+});
+
+test("verified Google identity creates a user and secure server session",async()=>{
+  auth.verifyGoogleToken=async token=>{
+    assert.equal(token,"verified-id-token");
+    return {sub:"google-user-123",name:"Nova Pilot",email:"Nova@Example.com",email_verified:true,picture:"https://lh3.googleusercontent.com/avatar.jpg"};
+  };
+  const response=await fetch(`http://127.0.0.1:${server.address().port}/api/auth/google`,{method:"POST",headers:{"content-type":"application/json","x-forwarded-proto":"https"},body:JSON.stringify({credential:"verified-id-token"})});
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),{user:{id:1,displayName:"Nova Pilot",email:"nova@example.com",avatarUrl:"https://lh3.googleusercontent.com/avatar.jpg"}});
+  const setCookie=response.headers.get("set-cookie");
+  assert.match(setCookie,/^starfall_session=[A-Za-z0-9_-]{43};/);assert.match(setCookie,/HttpOnly/);assert.match(setCookie,/SameSite=Lax/);assert.match(setCookie,/Secure/);
+  sessionCookie=setCookie.split(";",1)[0];
+  const token=sessionCookie.split("=",2)[1],stored=auth.db.prepare("SELECT id_hash FROM sessions").get();
+  assert.notEqual(stored.id_hash,token,"only a hash of the session token is stored");
+  const me=await fetch(`http://127.0.0.1:${server.address().port}/api/me`,{headers:{cookie:sessionCookie}});
+  assert.equal(me.status,200);assert.equal((await me.json()).user.displayName,"Nova Pilot");
+});
+
+test("logout invalidates the session and clears its cookie",async()=>{
+  const logout=await fetch(`http://127.0.0.1:${server.address().port}/api/logout`,{method:"POST",headers:{cookie:sessionCookie}});
+  assert.equal(logout.status,204);assert.match(logout.headers.get("set-cookie"),/Max-Age=0/);
+  const me=await fetch(`http://127.0.0.1:${server.address().port}/api/me`,{headers:{cookie:sessionCookie}});
+  assert.equal(me.status,401);assert.equal(auth.db.prepare("SELECT count(*) AS total FROM sessions").get().total,0);
 });
 
 test("pairs exactly two pilots and relays only allowed messages", async () => {
