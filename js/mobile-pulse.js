@@ -9,7 +9,7 @@
     const indicator = document.createElement("div");
     indicator.id = "mobile-pulse-indicator";
     indicator.setAttribute("aria-live", "polite");
-    indicator.innerHTML = '<span>PULSE</span><strong>CHARGING 0%</strong><small>DOUBLE TAP</small>';
+    indicator.innerHTML = '<div class="pulse-indicator-content"><span>PULSE</span><strong>0%</strong><small>CHARGING</small></div>';
     hud.appendChild(indicator);
 
     let wasReady = false;
@@ -19,9 +19,10 @@
       const pct = Math.max(0, Math.min(100, Math.round((game.pulseEnergy / max) * 100)));
       const ready = pct >= 100;
 
+      indicator.style.setProperty("--pulse-charge", `${pct}%`);
       indicator.classList.toggle("ready", ready);
       indicator.querySelector("strong").textContent = ready ? "READY" : `${pct}%`;
-      indicator.querySelector("small").textContent = ready ? "DOUBLE TAP" : "CHARGING";
+      indicator.querySelector("small").textContent = ready ? "2× TAP" : "CHARGING";
 
       if (ready && !wasReady) {
         indicator.classList.remove("flash");
