@@ -139,7 +139,7 @@
     draw(c) {
       const w=this.width,h=this.height,t=this.time;
       // 3 slow, seamless lighting phases: jade port -> lantern district -> blue orbit.
-      const phase=t/48, mix=(1-Math.cos((phase%1)*Math.PI))/2;
+      const phase=t/18, mix=(1-Math.cos((phase%1)*Math.PI))/2;
       const colors=[[40,117,124],[123,57,98],[52,78,140]],a=colors[Math.floor(phase)%3],b=colors[(Math.floor(phase)+1)%3];
       const rgb=a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',');
       c.save();
@@ -150,7 +150,7 @@
       c.strokeStyle='#688eab';c.lineWidth=1;c.globalAlpha=.09;
       for(let i=0;i<3;i++){c.beginPath();c.ellipse(w*.77,h*.29,w*.28+i*13,h*.28+i*12,-.3,0,Math.PI*2);c.stroke();}
       this.layers.forEach((pair,depth)=>{
-        const speed=[5,13,24][depth],offset=(t*speed)%1200;
+        const speed=[14,34,65][depth],offset=(t*speed)%1200;
         c.globalAlpha=[.18,.38,.92][depth];
         pair.forEach((tile,side)=>{for(let y=offset-1200;y<h;y+=1200)c.drawImage(tile,side?w-this.edge:0,y);});
       });

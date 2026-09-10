@@ -36,6 +36,14 @@ function loadGame() {
   return sandbox;
 }
 
+test("solo uses the selected fighter on start and restart",()=>{
+  const sandbox=loadGame(),game=sandbox.starfallGame;
+  sandbox.coopClient={selectedShip:3,leave(){}};
+  game.start();assert.equal(game.player.variant,3);
+  game.start();assert.equal(game.player.variant,3);
+  assert.equal(game.players.length,1);
+});
+
 test("co-op host updates both pilots and ends only when both are down",()=>{
   const sandbox=loadGame(),game=sandbox.starfallGame;
   game.startCoop("host","ABCDE",[2,3]);
