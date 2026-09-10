@@ -31,16 +31,19 @@ function game(width,height) {
     enemyProjectiles:[],enemies:[],powerups:[],boss:null,
     companions:[{x:width*.45,y:height*.7,side:1,playerIndex:0,fireTimer:0}],
     elapsed:12,score:42,kills:2,killChain:2,comboTimer:3,combo:1,bestCombo:1,pulseEnergy:60,nextBossTime:150,
-    state:"playing",onlineRole:"guest",localPlayerIndex:1,effects:{update(){}},updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},
+    state:"playing",onlineRole:"guest",localPlayerIndex:1,environment:{id:"shogun-valley"},effects:{update(){}},updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},
+    setEnvironment(id){this.environment.id=id;this.environmentApplied=id;},
   };
 }
 
 test("snapshot uses normalized positions and hydrates at another viewport size",()=>{
   const host=new Starfall.CoopClient(game(1000,800));
   const snapshot=host.snapshot();
+  assert.equal(snapshot.environment,"shogun-valley");
   assert.equal(snapshot.players[0].x,.4);assert.equal(snapshot.playerProjectiles[0].y,.4);
   const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
   guest.applySnapshot(snapshot);
+  assert.equal(guestGame.environmentApplied,"shogun-valley");
   assert.equal(guestGame.players[0].x,200);
   assert.equal(guestGame.players[1].x,300);
   assert.equal(guestGame.playerProjectiles[0].y,160);

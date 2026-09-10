@@ -7,6 +7,7 @@
   <title>Starfall Squadron — Neon Ronin</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/environments.css">
   <link rel="stylesheet" href="css/mobile-hud.css">
   <link rel="stylesheet" href="css/mobile-pulse.css">
   <link rel="stylesheet" href="css/special-weapon.css">
@@ -63,6 +64,24 @@
         <button id="how-button" class="secondary-button" type="button">HOW TO PLAY</button>
         <button id="settings-button" class="secondary-button" type="button">SETTINGS</button>
         <p class="mouse-note">Designed for comfortable, mouse-only play</p>
+      </div>
+    </section>
+
+    <section id="world-menu" class="overlay" aria-label="Choose your world">
+      <div class="menu-card world-card">
+        <div class="eyebrow">MISSION ENVIRONMENT</div>
+        <h2>CHOOSE YOUR WORLD</h2>
+        <div class="world-grid" role="group" aria-label="Available worlds">
+          <button class="world-choice" type="button" data-environment="neo-shibuya" aria-pressed="false"><canvas aria-hidden="true"></canvas><span><strong></strong><small></small></span></button>
+          <button class="world-choice" type="button" data-environment="neon-rift" aria-pressed="false"><canvas aria-hidden="true"></canvas><span><strong></strong><small></small></span></button>
+          <button class="world-choice" type="button" data-environment="outer-rim" aria-pressed="false"><canvas aria-hidden="true"></canvas><span><strong></strong><small></small></span></button>
+          <button class="world-choice" type="button" data-environment="shogun-valley" aria-pressed="false"><canvas aria-hidden="true"></canvas><span><strong></strong><small></small></span></button>
+        </div>
+        <div class="world-selection-copy"><strong id="world-selected-name"></strong><span id="world-selected-description"></span></div>
+        <div class="world-actions">
+          <button id="world-back-button" class="secondary-button" type="button">BACK</button>
+          <button id="world-confirm-button" class="primary-button" type="button">LAUNCH MISSION</button>
+        </div>
       </div>
     </section>
 
@@ -157,6 +176,7 @@
 
   <script src="js/config.js"></script>
   <script src="js/theme.js"></script>
+  <script src="js/environments.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/entities.js"></script>

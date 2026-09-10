@@ -20,11 +20,12 @@
       this.onlineRole = null;
       this.localPlayerIndex = 0;
       this.toastTimer = null;
+      this.pendingWorldMode = "solo";
       this.cacheElements();
       this.resize();
-      this.starfield = new Starfall.Starfield(this.width, this.height);
-      this.port = new Starfall.OrbitalPort(this.width, this.height);
+      this.environment = new Starfall.EnvironmentManager(this.width, this.height);
       this.bindEvents();
+      this.setupWorldSelector();
       this.resetWorld();
       requestAnimationFrame((time) => this.loop(time));
     }
@@ -33,7 +34,7 @@
       const ids = [
         "hud", "health-fill", "shield-fill", "health-text", "shield-text", "score-text", "combo-text",
         "boss-hud", "boss-fill", "pulse-button", "pulse-fill", "pulse-label", "powerup-status", "toast",
-        "main-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
+        "main-menu", "world-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
         "coop-badge", "coop-room-label", "network-latency", "wingmate-status", "wingmate-health", "wingmate-health-text",
       ];
       this.ui = {};
@@ -63,7 +64,9 @@
         if (event.button === 0 && this.state === "playing") this.activatePulse();
       });
       document.getElementById("pulse-button").addEventListener("click", () => this.activatePulse());
-      document.getElementById("play-button").addEventListener("click", () => this.start());
+      document.getElementById("play-button").addEventListener("click", () => this.openWorldSelector("solo"));
+      document.getElementById("world-confirm-button").addEventListener("click", () => this.confirmWorldSelection());
+      document.getElementById("world-back-button").addEventListener("click", () => this.showScreen("main-menu"));
       document.getElementById("how-button").addEventListener("click", () => this.showScreen("how-menu"));
       document.getElementById("how-back-button").addEventListener("click", () => this.showScreen("main-menu"));
       document.getElementById("pause-button").addEventListener("click", () => this.pause(false));
@@ -94,8 +97,7 @@
       this.canvas.width = Math.round(this.width * this.dpr);
       this.canvas.height = Math.round(this.height * this.dpr);
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-      if (this.port) this.port.resize(this.width, this.height);
-      if (this.starfield) this.starfield.resize(this.width, this.height, false);
+      if (this.environment) this.environment.resize(this.width, this.height);
       for (const player of this.players || []) {
         player.x = clamp(player.x, 30, this.width - 30);
         player.y = clamp(player.y, 100, this.height - 30);
@@ -149,12 +151,13 @@
       this.showToast("MISSION START", "#7ff7ff");
     }
 
-    startCoop(role, roomCode, ships, shipAdjusted) {
+    startCoop(role, roomCode, ships, shipAdjusted, environmentId) {
       this.audio.setBackgrounded(false);
       this.audio.unlock();
       this.audio.setScene("playing");
       this.onlineRole = role;
       this.localPlayerIndex = role === "guest" ? 1 : 0;
+      this.setEnvironment(environmentId, role !== "guest");
       this.resetWorld();
       const variants = Array.isArray(ships) ? ships : [0, 1];
       this.player.variant = variants[0] || 0;
@@ -219,6 +222,57 @@
       document.getElementById(id).classList.add("visible");
     }
 
+    setupWorldSelector() {
+      const choices=Array.from(document.querySelectorAll(".world-choice"));
+      choices.forEach((choice)=>{
+        const data=Starfall.environmentMetadata[choice.dataset.environment];
+        if(!data)return;
+        const name=choice.querySelector("strong"),subtitle=choice.querySelector("small");
+        if(name)name.textContent=data.name;
+        if(subtitle)subtitle.textContent=data.subtitle;
+        choice.addEventListener("click",()=>this.setEnvironment(data.id));
+        const preview=choice.querySelector("canvas");
+        if(preview){
+          preview.width=320;preview.height=150;
+          const renderer=new Starfall.EnvironmentManager(preview.width,preview.height,{id:data.id,persist:false});
+          renderer.update(data.id.length*.37,1);renderer.draw(preview.getContext("2d"));renderer.destroy();
+        }
+      });
+      this.renderWorldSelection();
+    }
+
+    setEnvironment(id,persist) {
+      const resolved=this.environment.setEnvironment(id,{persist:persist!==false});
+      this.renderWorldSelection();
+      return resolved;
+    }
+
+    renderWorldSelection() {
+      if(!this.environment)return;
+      const data=Starfall.environmentMetadata[this.environment.id];
+      document.querySelectorAll(".world-choice").forEach((choice)=>{
+        const selected=choice.dataset.environment===this.environment.id;
+        choice.classList.toggle("selected",selected);choice.setAttribute("aria-pressed",String(selected));
+      });
+      const name=document.getElementById("world-selected-name"),description=document.getElementById("world-selected-description");
+      if(name)name.textContent=data.name;
+      if(description)description.textContent=data.description;
+    }
+
+    openWorldSelector(mode) {
+      this.pendingWorldMode=mode==="coop"?"coop":"solo";
+      const confirm=document.getElementById("world-confirm-button");
+      if(confirm)confirm.textContent=this.pendingWorldMode==="coop"?"CONTINUE TO CO-OP":"LAUNCH MISSION";
+      this.showScreen("world-menu");
+    }
+
+    confirmWorldSelection() {
+      if(this.pendingWorldMode==="coop"){
+        this.showScreen("coop-menu");
+        if(window.coopClient)window.coopClient.setStatus("HOST WORLD: "+Starfall.environmentMetadata[this.environment.id].name);
+      }else this.start();
+    }
+
     hideScreens() {
       document.querySelectorAll(".overlay").forEach((screen) => screen.classList.remove("visible"));
     }
@@ -252,8 +306,7 @@
       const dt = Math.min(C.WORLD.maxDelta, rawDt);
       this.lastTime = timestamp;
       this.backgroundTime += dt;
-      this.port.update(dt, this.state === "playing" ? 1 : .38);
-      this.starfield.update(Starfall.THEME.reducedMotion.matches ? 0 : dt, this.state === "playing" ? 1 : .38);
+      this.environment.update(dt, this.state === "playing" ? 1 : .38);
       if (this.state === "playing" && this.onlineRole !== "guest") this.update(dt);
       else if (this.state === "playing" && window.coopClient) window.coopClient.updatePresentation(dt);
       else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
@@ -538,14 +591,7 @@
       const ctx = this.ctx;
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       ctx.clearRect(0, 0, this.width, this.height);
-      const background = ctx.createLinearGradient(0, 0, 0, this.height);
-      background.addColorStop(0, Starfall.THEME.navy);
-      background.addColorStop(.5, "#0B1524");
-      background.addColorStop(1, Starfall.THEME.navy);
-      ctx.fillStyle = background;
-      ctx.fillRect(0, 0, this.width, this.height);
-      this.starfield.draw(ctx, this.backgroundTime);
-      this.port.draw(ctx);
+      this.environment.draw(ctx);
 
       const sx = !Starfall.THEME.reducedMotion.matches && this.state === "playing" && this.shake > 0 ? random(-Math.min(this.shake, 2), Math.min(this.shake, 2)) : 0;
       const sy = !Starfall.THEME.reducedMotion.matches && this.state === "playing" && this.shake > 0 ? random(-Math.min(this.shake, 2), Math.min(this.shake, 2)) : 0;

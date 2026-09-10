@@ -114,8 +114,7 @@
         });
       }));
       document.getElementById("coop-button").addEventListener("click", () => {
-        this.game.showScreen("coop-menu");
-        this.setStatus("CONNECT TO CREATE OR JOIN A ROOM");
+        this.game.openWorldSelector("coop");
       });
       document.getElementById("coop-back-button").addEventListener("click", () => {
         this.leave();
@@ -164,7 +163,7 @@
     async createRoom() {
       try {
         await this.connect();
-        this.send({ type: "create", ship: this.selectedShip });
+        this.send({ type: "create", ship: this.selectedShip, environment:this.game.environment?.id||"neo-shibuya" });
       } catch (_) { this.setStatus("SERVER CONNECTION FAILED", true); }
     }
 
@@ -197,7 +196,7 @@
         this.actions.classList.add("hidden");
         this.waiting.classList.add("hidden");
         this.latencyLabel.textContent = this.role === "host" ? "HOST" : "SYNC…";
-        this.game.startCoop(this.role, this.room, message.ships, Boolean(message.shipAdjusted));
+        this.game.startCoop(this.role, this.room, message.ships, Boolean(message.shipAdjusted), message.environment);
       } else if (message.type === "input" && this.role === "host") {
         this.lastGuestInputSeq = Number.isSafeInteger(message.seq) ? message.seq : this.lastGuestInputSeq;
         const player = this.game.players[1];
@@ -261,6 +260,7 @@
       if (!this.nextEntityId) this.nextEntityId = 0;
       return {
         seq:++this.stateSeq, guestInputAck:this.lastGuestInputSeq,
+        environment:g.environment?.id||"neo-shibuya",
         elapsed:g.elapsed, score:g.score, kills:g.kills, killChain:g.killChain,
         comboTimer:g.comboTimer, combo:g.combo, bestCombo:g.bestCombo,
         pulseEnergy:g.pulseEnergy, nextBossTime:g.nextBossTime, finished:g.state === "gameover",
@@ -279,6 +279,7 @@
       if (Number.isSafeInteger(state.seq) && state.seq <= this.lastSnapshotSeq) return false;
       if (Number.isSafeInteger(state.seq)) this.lastSnapshotSeq = state.seq;
       const receivedAt=performance.now(),g=this.game,w=g.width,h=g.height;
+      if(typeof state.environment==="string"&&typeof g.setEnvironment==="function")g.setEnvironment(state.environment,false);
       for (const key of ["elapsed","score","kills","killChain","comboTimer","combo","bestCombo","pulseEnergy","nextBossTime"]) {
         if (Number.isFinite(state[key])) g[key]=state[key];
       }

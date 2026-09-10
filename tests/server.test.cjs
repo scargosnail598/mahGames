@@ -47,13 +47,14 @@ test("serves the game and health endpoint but not server source", async () => {
 test("pairs exactly two pilots and relays only allowed messages", async () => {
   const url=`ws://127.0.0.1:${server.address().port}/ws`;
   const host=await open(url),guest=await open(url),third=await open(url);
-  const createdPromise=message(host);host.send(JSON.stringify({type:"create",ship:2}));
+  const createdPromise=message(host);host.send(JSON.stringify({type:"create",ship:2,environment:"shogun-valley"}));
   const created=await createdPromise;assert.match(created.room,/^[A-Z]{5}$/);
+  assert.equal(rooms.get(created.room).environment,"shogun-valley");
 
   const hostReady=message(host),guestReady=message(guest);
   guest.send(JSON.stringify({type:"join",room:created.room,ship:2}));
-  assert.deepEqual(await hostReady,{type:"ready",role:"host",room:created.room,ships:[2,3]});
-  assert.deepEqual(await guestReady,{type:"ready",role:"guest",room:created.room,ships:[2,3],shipAdjusted:true});
+  assert.deepEqual(await hostReady,{type:"ready",role:"host",room:created.room,ships:[2,3],environment:"shogun-valley"});
+  assert.deepEqual(await guestReady,{type:"ready",role:"guest",room:created.room,ships:[2,3],environment:"shogun-valley",shipAdjusted:true});
 
   const full=message(third);third.send(JSON.stringify({type:"join",room:created.room}));
   assert.equal((await full).type,"error");
@@ -68,5 +69,7 @@ test("pairs exactly two pilots and relays only allowed messages", async () => {
   assert.deepEqual(await state,{type:"state",state:{score:42,players:[]}});
 
   const left=message(host);guest.close();assert.deepEqual(await left,{type:"peer_left"});
+  const fallbackPromise=message(host);host.send(JSON.stringify({type:"create",environment:"not-a-world"}));
+  const fallback=await fallbackPromise;assert.equal(rooms.get(fallback.room).environment,"neo-shibuya");
   host.close();third.close();
 });

@@ -31,12 +31,12 @@
       };
     }
 
-    // Stage-specific scenery is inserted through the existing port renderer, so it
-    // remains behind ships/projectiles while visibly changing the sector identity.
-    const port = game.port;
-    const originalPortDraw = port.draw.bind(port);
-    port.draw = function (ctx) {
-      originalPortDraw(ctx);
+    // Stage-specific scenery is inserted at the environment boundary, so it
+    // remains behind ships/projectiles and survives world changes.
+    const environment = game.environment;
+    const originalEnvironmentDraw = environment.draw.bind(environment);
+    environment.draw = function (ctx) {
+      originalEnvironmentDraw(ctx);
       const stage = Math.max(0, game.stage || 0);
       const scene = stage % 6;
       const w = game.width, h = game.height;

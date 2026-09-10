@@ -30,7 +30,7 @@ function loadGame() {
     window:{matchMedia:()=>({matches:false}),addEventListener:(name,callback)=>{if(name==="DOMContentLoaded")ready.push(callback);},devicePixelRatio:1,innerWidth:1000,innerHeight:800},
   };
   Object.assign(sandbox,sandbox.window);sandbox.window=sandbox;vm.createContext(sandbox);
-  for(const file of ["config.js","theme.js","audio.js","effects.js","entities.js","game.js"])
+  for(const file of ["config.js","theme.js","environments.js","audio.js","effects.js","entities.js","game.js"])
     vm.runInContext(fs.readFileSync(path.join(__dirname,"../js",file),"utf8"),sandbox);
   ready.forEach(callback=>callback());
   return sandbox;
@@ -46,7 +46,8 @@ test("solo uses the selected fighter on start and restart",()=>{
 
 test("co-op host updates both pilots and ends only when both are down",()=>{
   const sandbox=loadGame(),game=sandbox.starfallGame;
-  game.startCoop("host","ABCDE",[2,3]);
+  game.startCoop("host","ABCDE",[2,3],false,"outer-rim");
+  assert.equal(game.environment.id,"outer-rim");
   assert.equal(game.players.length,2);assert.equal(game.companions.length,2);
   assert.equal(game.players[0].variant,2);assert.equal(game.players[1].variant,3);assert.equal(game.localPlayerIndex,0);
   game.spawnTimer=999;
