@@ -54,8 +54,8 @@ test("pairs exactly two pilots and relays only allowed messages", async () => {
   const full=message(third);third.send(JSON.stringify({type:"join",room:created.room}));
   assert.equal((await full).type,"error");
 
-  const input=message(host);guest.send(JSON.stringify({type:"input",x:2,y:-1}));
-  assert.deepEqual(await input,{type:"input",x:1,y:0});
+  const input=message(host);guest.send(JSON.stringify({type:"input",x:2,y:-1,seq:9}));
+  assert.deepEqual(await input,{type:"input",x:1,y:0,seq:9});
 
   const pulse=message(host);guest.send(JSON.stringify({type:"pulse"}));
   assert.deepEqual(await pulse,{type:"pulse"});
