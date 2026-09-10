@@ -21,6 +21,7 @@
       this.cacheElements();
       this.resize();
       this.starfield = new Starfall.Starfield(this.width, this.height);
+      this.port = new Starfall.OrbitalPort(this.width, this.height);
       this.bindEvents();
       this.resetWorld();
       requestAnimationFrame((time) => this.loop(time));
@@ -72,6 +73,7 @@
       this.canvas.width = Math.round(this.width * this.dpr);
       this.canvas.height = Math.round(this.height * this.dpr);
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      if (this.port) this.port.resize(this.width, this.height);
       if (this.starfield) this.starfield.resize(this.width, this.height, false);
       if (this.player) {
         this.player.x = clamp(this.player.x, 30, this.width - 30);
@@ -168,7 +170,8 @@
       const dt = Math.min(C.WORLD.maxDelta, rawDt);
       this.lastTime = timestamp;
       this.backgroundTime += dt;
-      this.starfield.update(dt, this.state === "playing" ? 1 : .38);
+      this.port.update(dt, this.state === "playing" ? 1 : .38);
+      this.starfield.update(Starfall.THEME.reducedMotion.matches ? 0 : dt, this.state === "playing" ? 1 : .38);
       if (this.state === "playing") this.update(dt);
       else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
       this.draw();
@@ -430,15 +433,16 @@
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
       ctx.clearRect(0, 0, this.width, this.height);
       const background = ctx.createLinearGradient(0, 0, 0, this.height);
-      background.addColorStop(0, "#090a27");
-      background.addColorStop(.5, "#10143d");
-      background.addColorStop(1, "#030513");
+      background.addColorStop(0, Starfall.THEME.navy);
+      background.addColorStop(.5, "#0B1524");
+      background.addColorStop(1, Starfall.THEME.navy);
       ctx.fillStyle = background;
       ctx.fillRect(0, 0, this.width, this.height);
       this.starfield.draw(ctx, this.backgroundTime);
+      this.port.draw(ctx);
 
-      const sx = this.state === "playing" && this.shake > 0 ? random(-this.shake, this.shake) : 0;
-      const sy = this.state === "playing" && this.shake > 0 ? random(-this.shake, this.shake) : 0;
+      const sx = !Starfall.THEME.reducedMotion.matches && this.state === "playing" && this.shake > 0 ? random(-Math.min(this.shake, 2), Math.min(this.shake, 2)) : 0;
+      const sy = !Starfall.THEME.reducedMotion.matches && this.state === "playing" && this.shake > 0 ? random(-Math.min(this.shake, 2), Math.min(this.shake, 2)) : 0;
       ctx.save();
       ctx.translate(sx, sy);
       if (this.state !== "menu") {
@@ -457,24 +461,11 @@
     }
 
     drawMenuShips(ctx) {
-      ctx.save();
-      ctx.globalAlpha = .28;
-      const drift = Math.sin(this.backgroundTime * .5) * 12;
-      ctx.translate(this.width * .14 + drift, this.height * .72);
-      ctx.rotate(-.3);
-      ctx.strokeStyle = "#52e6ff";
-      ctx.lineWidth = 2;
-      ctx.shadowColor = "#52e6ff";
-      ctx.shadowBlur = 20;
-      ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(38, 25); ctx.lineTo(12, 18); ctx.lineTo(0, 34); ctx.lineTo(-12, 18); ctx.lineTo(-38, 25); ctx.closePath(); ctx.stroke();
-      ctx.restore();
-      ctx.save();
-      ctx.globalAlpha = .18;
-      ctx.translate(this.width * .85 - drift, this.height * .22);
-      ctx.scale(.7, .7); ctx.rotate(.18);
-      ctx.strokeStyle = "#ff68d3"; ctx.lineWidth = 3; ctx.shadowColor = "#ff68d3"; ctx.shadowBlur = 20;
-      ctx.beginPath(); ctx.moveTo(0, 42); ctx.lineTo(-45, 8); ctx.lineTo(-28, -25); ctx.lineTo(0, -13); ctx.lineTo(28, -25); ctx.lineTo(45, 8); ctx.closePath(); ctx.stroke();
-      ctx.restore();
+      const x=this.width>950 ? this.width*.78 : this.width*.85;
+      ctx.save(); ctx.translate(x,this.height*.64); ctx.rotate(-.28);
+      const scale=this.width>950?3.6:1.7; ctx.scale(scale,scale);
+      ctx.globalAlpha=this.width>950?.9:.35;
+      Starfall.THEME.ship(ctx,'player',this.backgroundTime); ctx.restore();
     }
   }
 

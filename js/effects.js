@@ -50,8 +50,8 @@
       ctx.fillStyle = nebulaB;
       ctx.fillRect(0, 0, this.width, this.height);
       for (const star of this.stars) {
-        const shimmer = 0.72 + Math.sin(time * 2 + star.x) * 0.2;
-        ctx.globalAlpha = star.alpha * shimmer;
+        const shimmer = Starfall.THEME.reducedMotion.matches ? .6 : 0.62 + Math.sin(time * 2 + star.x) * 0.1;
+        ctx.globalAlpha = star.alpha * shimmer * .45;
         ctx.fillStyle = star.blue ? "#8eeeff" : "#ffffff";
         ctx.fillRect(star.x, star.y, star.size, star.size * (star.speed > 90 ? 2.5 : 1));
       }
@@ -91,7 +91,7 @@
       ctx.globalAlpha = alpha;
       ctx.fillStyle = this.color;
       ctx.shadowColor = this.color;
-      ctx.shadowBlur = 9;
+      ctx.shadowBlur = 0;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.size * (0.4 + alpha * 0.6), 0, Math.PI * 2);
       ctx.fill();
@@ -157,7 +157,7 @@
       ctx.strokeStyle = this.color;
       ctx.lineWidth = 4 + alpha * 8;
       ctx.shadowColor = this.color;
-      ctx.shadowBlur = 24;
+      ctx.shadowBlur = 5;
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
       ctx.stroke();
