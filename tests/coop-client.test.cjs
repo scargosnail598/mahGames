@@ -8,6 +8,7 @@ function element() {
     value:"", textContent:"", nextElementSibling:{textContent:""},
     classList:{add(){},remove(){},toggle(){}},
     addEventListener(){},
+    setAttribute(){},
   };
 }
 
@@ -15,7 +16,7 @@ const elements=new Map();
 global.window=global;
 global.location={protocol:"http:",host:"localhost"};
 Object.defineProperty(global,"navigator",{value:{clipboard:{writeText:async()=>{}}},configurable:true});
-global.document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);}};
+global.document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},querySelectorAll(){return[];}};
 global.addEventListener=()=>{};
 global.requestAnimationFrame=()=>{};
 global.Starfall={clamp:(v,min,max)=>Math.max(min,Math.min(max,v))};

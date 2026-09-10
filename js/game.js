@@ -148,16 +148,18 @@
       this.showToast("MISSION START", "#7ff7ff");
     }
 
-    startCoop(role, roomCode) {
+    startCoop(role, roomCode, ships, shipAdjusted) {
       this.audio.setBackgrounded(false);
       this.audio.unlock();
       this.audio.setScene("playing");
       this.onlineRole = role;
       this.localPlayerIndex = role === "guest" ? 1 : 0;
       this.resetWorld();
+      const variants = Array.isArray(ships) ? ships : [0, 1];
+      this.player.variant = variants[0] || 0;
       this.player.x = this.width * .42;
       this.player.targetX = this.player.x;
-      const wingmate = new Starfall.Player(this.width * .58, this.height * .78, 1);
+      const wingmate = new Starfall.Player(this.width * .58, this.height * .78, variants[1] || 0);
       wingmate.targetX = wingmate.x;
       this.players.push(wingmate);
       this.companions.push(new Starfall.CompanionDrone(-1, 1));
@@ -169,7 +171,7 @@
       this.ui["coop-room-label"].textContent = roomCode;
       this.lastTime = performance.now();
       this.updateHUD();
-      this.showToast(role === "host" ? "WINGMATE LINKED" : "JOINED SQUADRON", "#65e7a0");
+      this.showToast(shipAdjusted ? "FIGHTER RESERVED — ALTERNATE ASSIGNED" : role === "host" ? "WINGMATE LINKED" : "JOINED SQUADRON", shipAdjusted ? "#ffc66d" : "#65e7a0");
     }
 
     mainMenu() {

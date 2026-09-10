@@ -38,9 +38,9 @@ function loadGame() {
 
 test("co-op host updates both pilots and ends only when both are down",()=>{
   const sandbox=loadGame(),game=sandbox.starfallGame;
-  game.startCoop("host","ABCDE");
+  game.startCoop("host","ABCDE",[2,3]);
   assert.equal(game.players.length,2);assert.equal(game.companions.length,2);
-  assert.equal(game.players[1].variant,1);assert.equal(game.localPlayerIndex,0);
+  assert.equal(game.players[0].variant,2);assert.equal(game.players[1].variant,3);assert.equal(game.localPlayerIndex,0);
   game.spawnTimer=999;
   const oldX=game.players[1].x;game.players[1].targetX=oldX+100;
   game.update(.03);assert.ok(game.players[1].x>oldX,"wingmate moves in host simulation");

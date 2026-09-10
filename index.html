@@ -67,6 +67,15 @@
         <h2>ONLINE CO-OP</h2>
         <p class="coop-copy">Create a private room, then send its five-letter code to your wingmate.</p>
         <div id="coop-actions">
+          <fieldset class="ship-picker">
+            <legend>SELECT YOUR FIGHTER</legend>
+            <div class="ship-grid">
+              <button class="ship-choice selected ship-katana" type="button" data-ship="0" aria-pressed="true"><span class="ship-preview"><i></i></span><strong>KATANA</strong><small>JADE STRIKE</small></button>
+              <button class="ship-choice ship-torii" type="button" data-ship="1" aria-pressed="false"><span class="ship-preview"><i></i></span><strong>TORII</strong><small>AMBER WING</small></button>
+              <button class="ship-choice ship-oni" type="button" data-ship="2" aria-pressed="false"><span class="ship-preview"><i></i></span><strong>ONI</strong><small>CRIMSON GUARD</small></button>
+              <button class="ship-choice ship-kitsune" type="button" data-ship="3" aria-pressed="false"><span class="ship-preview"><i></i></span><strong>KITSUNE</strong><small>VIOLET GHOST</small></button>
+            </div>
+          </fieldset>
           <button id="create-room-button" class="primary-button" type="button">CREATE ROOM</button>
           <div class="join-row">
             <input id="room-code-input" type="text" maxlength="5" autocomplete="off" spellcheck="false" aria-label="Five-letter room code" placeholder="ROOM CODE">

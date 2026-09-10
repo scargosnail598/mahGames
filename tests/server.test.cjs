@@ -43,13 +43,13 @@ test("serves the game and health endpoint but not server source", async () => {
 test("pairs exactly two pilots and relays only allowed messages", async () => {
   const url=`ws://127.0.0.1:${server.address().port}/ws`;
   const host=await open(url),guest=await open(url),third=await open(url);
-  const createdPromise=message(host);host.send(JSON.stringify({type:"create"}));
+  const createdPromise=message(host);host.send(JSON.stringify({type:"create",ship:2}));
   const created=await createdPromise;assert.match(created.room,/^[A-Z]{5}$/);
 
   const hostReady=message(host),guestReady=message(guest);
-  guest.send(JSON.stringify({type:"join",room:created.room}));
-  assert.deepEqual(await hostReady,{type:"ready",role:"host",room:created.room});
-  assert.deepEqual(await guestReady,{type:"ready",role:"guest",room:created.room});
+  guest.send(JSON.stringify({type:"join",room:created.room,ship:2}));
+  assert.deepEqual(await hostReady,{type:"ready",role:"host",room:created.room,ships:[2,3]});
+  assert.deepEqual(await guestReady,{type:"ready",role:"guest",room:created.room,ships:[2,3],shipAdjusted:true});
 
   const full=message(third);third.send(JSON.stringify({type:"join",room:created.room}));
   assert.equal((await full).type,"error");

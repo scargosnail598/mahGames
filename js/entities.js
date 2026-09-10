@@ -132,13 +132,7 @@
         ctx.strokeStyle=this.invincible>0?T.amber:T.cyan; ctx.lineWidth=2;
         ctx.beginPath(); ctx.arc(0,0,29,0,Math.PI*2); ctx.stroke();
       }
-      T.ship(ctx,'player',time);
-      if (this.variant === 1) {
-        ctx.fillStyle=T.amber;
-        ctx.fillRect(-18,-4,5,2); ctx.fillRect(13,-4,5,2);
-        ctx.strokeStyle=T.amber; ctx.lineWidth=1.4;
-        ctx.beginPath(); ctx.arc(0,-3,7,0,Math.PI*2); ctx.stroke();
-      }
+      T.ship(ctx,'player',time,this.variant);
       ctx.restore();
     }
   }
