@@ -8,6 +8,7 @@ const crypto = require("node:crypto");
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "0.0.0.0";
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "";
+const APP_VERSION = process.env.APP_VERSION || "dev";
 const ROOT = __dirname;
 const MAX_MESSAGE = 128 * 1024;
 const rooms = new Map();
@@ -21,7 +22,7 @@ const MIME = {
 function staticHandler(request, response) {
   if (request.url === "/healthz") {
     response.writeHead(200, { "content-type":"application/json", "cache-control":"no-store" });
-    response.end(JSON.stringify({ ok:true, rooms:rooms.size }));
+    response.end(JSON.stringify({ ok:true, rooms:rooms.size, version:APP_VERSION }));
     return;
   }
   if (request.method !== "GET" && request.method !== "HEAD") {
@@ -39,14 +40,26 @@ function staticHandler(request, response) {
   }
   fs.stat(filename, (error, stat) => {
     if (error || !stat.isFile()) { response.writeHead(404); response.end("Not found"); return; }
-    response.writeHead(200, {
+    const isHtml=path.extname(filename) === ".html";
+    const headers={
       "content-type":MIME[path.extname(filename)] || "application/octet-stream",
-      "cache-control":path.extname(filename) === ".html" ? "no-cache" : "public, max-age=3600",
+      "cache-control":isHtml ? "no-cache, no-store, must-revalidate" : "public, max-age=3600",
       "x-content-type-options":"nosniff",
       "content-security-policy":"default-src 'self'; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; script-src 'self'",
+    };
+    if (!isHtml) {
+      response.writeHead(200,headers);
+      if (request.method === "HEAD") response.end();
+      else fs.createReadStream(filename).pipe(response);
+      return;
+    }
+    fs.readFile(filename,"utf8",(readError,source)=>{
+      if(readError){response.writeHead(500);response.end("Server error");return;}
+      const version=encodeURIComponent(APP_VERSION);
+      const body=Buffer.from(source.replace(/((?:src|href)="(?:css|js)\/[^"?]+)(?:\?[^\"]*)?"/g,`$1?v=${version}"`));
+      response.writeHead(200,{...headers,"content-length":body.length});
+      response.end(request.method === "HEAD" ? undefined : body);
     });
-    if (request.method === "HEAD") response.end();
-    else fs.createReadStream(filename).pipe(response);
   });
 }
 

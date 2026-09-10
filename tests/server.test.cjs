@@ -5,6 +5,7 @@ const assert = require("node:assert/strict");
 
 process.env.PORT = "0";
 process.env.HOST = "127.0.0.1";
+process.env.APP_VERSION = "test-sha";
 const { server, rooms } = require("../server.js");
 
 function message(socket) {
@@ -34,8 +35,11 @@ test.after(async () => {
 test("serves the game and health endpoint but not server source", async () => {
   const base=`http://127.0.0.1:${server.address().port}`;
   const health=await fetch(base+"/healthz");
-  assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
-  assert.equal((await fetch(base+"/")).status,200);
+  assert.equal(health.status,200);assert.deepEqual(await health.json(),{ok:true,rooms:0,version:"test-sha"});
+  const index=await fetch(base+"/");
+  assert.equal(index.status,200);
+  assert.match(await index.text(),/src="js\/game\.js\?v=test-sha"/);
+  assert.match(index.headers.get("cache-control"),/no-store/);
   assert.equal((await fetch(base+"/js/game.js")).status,200);
   assert.equal((await fetch(base+"/server.js")).status,403);
 });

@@ -7,6 +7,7 @@ services:
     environment:
       PORT: "8080"
       HOST: "0.0.0.0"
+      APP_VERSION: "${APP_VERSION:-dev}"
       # Set this to the public ArvanCloud hostname when publishing, for example:
       # ALLOWED_ORIGIN: "https://game.example.com"
     healthcheck:
