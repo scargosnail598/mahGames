@@ -1,0 +1,69 @@
+/* Main-menu settings consolidation and viewport-fit overrides. */
+
+#main-menu {
+  padding: clamp(10px, 2vh, 20px);
+  overflow: hidden;
+}
+
+#main-menu .hero-card {
+  width: min(510px, 94vw);
+  max-height: calc(100dvh - 20px);
+  padding: clamp(18px, 3vh, 34px) clamp(20px, 3vw, 38px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+#main-menu .eyebrow { margin-bottom: 5px; }
+#main-menu h1 {
+  font-size: clamp(38px, 7.2vh, 66px);
+  margin-bottom: 7px;
+}
+#main-menu .theme-subtitle,
+#main-menu .mission-coordinate { margin-top: 2px; }
+#main-menu .tagline { margin: clamp(8px, 1.5vh, 15px) 0 clamp(10px, 1.8vh, 18px); }
+#main-menu .primary-button,
+#main-menu .secondary-button {
+  min-height: clamp(42px, 6.2vh, 54px);
+  margin: 4px 0;
+}
+#main-menu .mouse-note { margin: 8px 0 -4px; }
+
+/* Keep the solo fighter selector compact enough to fit the landing screen. */
+#solo-ship-picker .ship-picker { margin: 0 0 8px; }
+#solo-ship-picker .ship-grid { gap: 6px; }
+#solo-ship-picker .ship-choice { min-height: 0; }
+#solo-ship-picker .fighter-preview { max-height: clamp(42px, 8vh, 70px); }
+
+.settings-card {
+  width: min(430px, 92vw);
+}
+
+.settings-group {
+  display: grid;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+
+.settings-group .sound-button { margin: 0; }
+.settings-group .music-control { margin: 0; }
+
+@media (max-height: 760px) {
+  #main-menu .hero-card { padding-top: 14px; padding-bottom: 14px; }
+  #main-menu .eyebrow,
+  #main-menu .mission-coordinate,
+  #main-menu .mouse-note { display: none; }
+  #main-menu .tagline { margin: 6px 0 10px; font-size: 12px; }
+  #main-menu h1 { font-size: clamp(34px, 6.6vh, 50px); }
+  #solo-ship-picker .fighter-preview { max-height: 46px; }
+  #main-menu .primary-button,
+  #main-menu .secondary-button { min-height: 40px; }
+}
+
+@media (max-height: 620px) {
+  #main-menu .theme-subtitle { display: none; }
+  #main-menu .tagline { display: none; }
+  #solo-ship-picker .fighter-preview { max-height: 36px; }
+  #main-menu .primary-button,
+  #main-menu .secondary-button { min-height: 36px; margin: 2px 0; }
+}
