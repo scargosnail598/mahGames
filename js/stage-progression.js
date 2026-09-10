@@ -19,6 +19,16 @@
     ["#86dcc9", "#ebcb7b", "#b693ff", "#78ddb0", "#f4eba1", "#d68aff"],
   ];
 
+  const STAGE_PERKS = [
+    "BASE SYSTEMS",
+    "TUNED CANNONS",
+    "FLUX SHIELD",
+    "PULSE CORE",
+    "VECTOR THRUST",
+    "OVERCHARGED LASERS",
+    "RONIN FRAME",
+  ];
+
   const clampStage = (stage, cap) => Math.min(Math.max(0, stage || 0), cap);
 
   window.addEventListener("DOMContentLoaded", () => {
@@ -26,12 +36,15 @@
     if (!game || !window.Starfall || !Starfall.THEME) return;
 
     const T = Starfall.THEME;
+    const C = Starfall.CONFIG;
     const BaseEnemy = Starfall.Enemy;
     const BaseBoss = Starfall.Boss;
+    const baseShip = T.ship.bind(T);
     const basePowerupColors = {};
     Object.keys(Starfall.POWERUPS || {}).forEach((key) => { basePowerupColors[key] = Starfall.POWERUPS[key].color; });
 
     game.stage = 0;
+    game.shipRank = 0;
     game.stageTint = PALETTES[0].tint;
 
     function applyTheme(stage) {
@@ -51,6 +64,8 @@
       Object.keys(Starfall.POWERUPS || {}).forEach((key, index) => {
         Starfall.POWERUPS[key].color = colors[index] || basePowerupColors[key];
       });
+
+      if (game.audio) game.audio.stageIntensity = stage;
     }
 
     function difficultyFor(stage) {
@@ -64,6 +79,21 @@
         bossHealth: Math.min(1.65, 1 + s * 0.055),
         bossTempo: Math.min(1.22, 1 + s * 0.018),
       };
+    }
+
+    function upgradeFor(stage) {
+      const s = clampStage(stage, 10);
+      return {
+        laserDamage: 1 + Math.min(.28, s * .035),
+        extraFireDrain: Math.min(.22, s * .025),
+        shieldRegenBonus: Math.min(3.2, s * .42),
+        pulseBonus: Math.min(1.4, s * .18),
+      };
+    }
+
+    function shipRankFor(score, stage) {
+      const scoreRank = Math.floor(Math.max(0, score || 0) / 7000);
+      return Math.min(6, Math.max(stage || 0, scoreRank));
     }
 
     Starfall.Enemy = class StageEnemy extends BaseEnemy {
@@ -93,9 +123,79 @@
       }
     };
 
+    // Visual evolution: subtle extra wing lights / core rings as the run advances.
+    T.ship = function (ctx, kind, time, weak) {
+      baseShip(ctx, kind, time, weak);
+      if (kind !== "player") return;
+      const rank = window.starfallGame?.shipRank || 0;
+      if (!rank) return;
+
+      ctx.save();
+      ctx.globalAlpha = .45 + Math.min(.3, rank * .05);
+      ctx.strokeStyle = T.cyan;
+      ctx.fillStyle = rank >= 4 ? T.amber : T.cyan;
+      ctx.lineWidth = 1;
+      if (rank >= 1) { ctx.fillRect(-27, 8, 3, 6); ctx.fillRect(24, 8, 3, 6); }
+      if (rank >= 2) { ctx.beginPath(); ctx.arc(0, -2, 11, 0, Math.PI * 2); ctx.stroke(); }
+      if (rank >= 3) { ctx.fillRect(-18, 18, 3, 5); ctx.fillRect(15, 18, 3, 5); }
+      if (rank >= 4) { ctx.beginPath(); ctx.moveTo(-30, -5); ctx.lineTo(-20, -12); ctx.moveTo(30, -5); ctx.lineTo(20, -12); ctx.stroke(); }
+      if (rank >= 5) { ctx.globalAlpha *= .65; ctx.beginPath(); ctx.arc(0, 0, 25 + Math.sin(time * 4) * 1.5, 0, Math.PI * 2); ctx.stroke(); }
+      ctx.restore();
+    };
+
+    // Music becomes gradually more energetic after each boss without changing track identity.
+    if (game.audio) {
+      const audio = game.audio;
+      const originalPlay = audio.play.bind(audio);
+      audio.stageIntensity = 0;
+
+      audio.scheduleMusic = function () {
+        if (!this.ctx || this.ctx.state !== "running") return;
+        const stage = clampStage(this.stageIntensity || 0, 10);
+        const bpm = 72 + Math.min(14, stage * 1.6);
+        const beat = 60 / bpm;
+        const now = this.ctx.currentTime;
+        if (this.nextMusicTime < now - .4) this.nextMusicTime = now + .05;
+
+        while (this.nextMusicTime < now + .3) {
+          const step = this.musicStep;
+          const t = this.nextMusicTime;
+          const bar = Math.floor(step / 8) % 8;
+          if (this.enabled && !this.backgrounded && this.musicVolume > 0) {
+            const chords = [[45,52,59],[41,48,55],[48,55,62],[43,50,57]];
+            const chord = chords[Math.floor(bar / 2)];
+            if (step % 8 === 0) {
+              chord.forEach((n,i)=>this.musicNote(n,t,beat*5,.13,"sine",(i-1)*.35,.7));
+              this.musicNote(chord[0]-12,t,beat*3,.10,"sine",0,.4);
+            }
+            const melody=[69,null,72,76,null,79,76,null,72,null,69,null,67,64,null,null];
+            const note=melody[step%16];
+            if(note!==null)this.musicNote(note+(bar>=4?-12:0),t,beat*2.8,.14,"triangle",Math.sin(step*.7)*.45,.018);
+            if(step%16===12)this.musicNote(88,t,beat*3,.035,"sine",-.3,.025);
+            if(stage >= 2 && step % 4 === 2) this.musicNote(57 + (stage % 3) * 2, t, beat * .45, .018 + stage * .0015, "triangle", .2, .01);
+            if(stage >= 4 && step % 8 === 6) this.musicNote(81, t, beat * .35, .016, "square", -.2, .008);
+          }
+          this.musicStep++;
+          this.nextMusicTime += beat / 2;
+        }
+      };
+
+      audio.play = function (name) {
+        originalPlay(name);
+        const stage = clampStage(this.stageIntensity || 0, 10);
+        if (!stage || !this.enabled || !this.ctx) return;
+        const accent = Math.min(.05, stage * .004);
+        if (name === "laser" && Math.random() < .22) this.tone(980 + stage * 18, 520 + stage * 12, .045, "triangle", .018 + accent * .2);
+        else if (name === "explosion" && stage >= 2) this.tone(95 + stage * 3, 42, .16, "sine", .025 + accent);
+        else if (name === "powerup") this.tone(760 + stage * 24, 1180 + stage * 28, .12, "sine", .025 + accent * .4, .035);
+        else if (name === "bossShot" && stage >= 3) this.tone(330 + stage * 9, 125, .12, "triangle", .018 + accent * .3);
+      };
+    }
+
     const originalResetWorld = game.resetWorld.bind(game);
     game.resetWorld = function () {
       this.stage = 0;
+      this.shipRank = 0;
       applyTheme(0);
       return originalResetWorld();
     };
@@ -108,10 +208,18 @@
 
       this.stage = (this.stage || 0) + 1;
       applyTheme(this.stage);
+      this.shipRank = shipRankFor(this.score, this.stage);
       const d = difficultyFor(this.stage);
-      this.showToast(`SECTOR ${String(this.stage + 1).padStart(2, "0")}\n${this.stageName}`, T.amber);
+      const perk = STAGE_PERKS[Math.min(this.stage, STAGE_PERKS.length - 1)];
+      this.showToast(`SECTOR ${String(this.stage + 1).padStart(2, "0")}\n${this.stageName}\n${perk}`, T.amber);
       this.effects.wave(this.width / 2, this.height * .45, Math.min(this.width * .65, 420), T.cyan);
       this.spawnTimer = Math.max(0.4, this.spawnTimer * (1 - d.spawnPressure * .35));
+
+      // A small post-boss reward keeps upgrades satisfying without making the run trivial.
+      for (const player of this.players || []) {
+        if (!player || player.dead) continue;
+        player.shield = Math.min(C.PLAYER.maxShield, player.shield + 10 + Math.min(18, this.stage * 2));
+      }
     };
 
     const originalSpawnEnemies = game.spawnEnemies.bind(game);
@@ -124,13 +232,32 @@
     const originalUpdate = game.update.bind(game);
     game.update = function (dt) {
       const result = originalUpdate(dt);
-      const d = difficultyFor(this.stage || 0);
+      const stage = this.stage || 0;
+      const d = difficultyFor(stage);
+      const up = upgradeFor(stage);
+      this.shipRank = shipRankFor(this.score, stage);
+
       for (const projectile of this.enemyProjectiles) {
         if (projectile.__stageScaled) continue;
         projectile.vx *= d.projectileSpeed;
         projectile.vy *= d.projectileSpeed;
         projectile.__stageScaled = true;
       }
+
+      for (const projectile of this.playerProjectiles) {
+        if (projectile.__upgradeScaled) continue;
+        projectile.damage *= up.laserDamage;
+        projectile.__upgradeScaled = true;
+      }
+
+      for (const player of this.players || []) {
+        if (!player || player.dead) continue;
+        if (stage >= 1 && player.fireTimer > 0) player.fireTimer = Math.max(0, player.fireTimer - dt * up.extraFireDrain);
+        if (stage >= 2 && player.sinceDamage >= C.PLAYER.shieldRechargeDelay && player.shield < C.PLAYER.maxShield) {
+          player.shield = Math.min(C.PLAYER.maxShield, player.shield + up.shieldRegenBonus * dt);
+        }
+      }
+      if (stage >= 3) this.pulseEnergy = Math.min(C.PULSE.maxEnergy, this.pulseEnergy + up.pulseBonus * dt);
       return result;
     };
 
