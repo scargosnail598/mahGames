@@ -1,57 +1,55 @@
-/* Mobile Pulse Blast feedback: keep gameplay focus near the action, not a corner button. */
+/* Mobile Pulse Blast: compact top-right status, gesture-only activation on touch. */
 #mobile-pulse-indicator { display:none; }
 
-@media (pointer: coarse), (hover: none) {
-  #pulse-button {
-    opacity: .18;
-    pointer-events: none;
-  }
+/* The old Pulse button is no longer part of gameplay UI. Desktop keeps
+   click-anywhere Pulse behavior; touch uses double tap. */
+#pulse-button { display:none !important; }
 
+@media (pointer: coarse), (hover: none) {
   #mobile-pulse-indicator {
     position: absolute;
-    top: calc(env(safe-area-inset-top, 0px) + 112px);
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 4;
+    top: calc(env(safe-area-inset-top, 0px) + 64px);
+    right: calc(env(safe-area-inset-right, 0px) + 10px);
+    z-index: 5;
     display: grid;
     grid-template-columns: auto auto;
     align-items: center;
-    gap: 2px 8px;
-    min-width: 190px;
-    padding: 7px 12px 8px;
-    border: 1px solid rgba(86,231,242,.35);
+    gap: 1px 7px;
+    min-width: 122px;
+    padding: 6px 8px;
+    border: 1px solid rgba(86,231,242,.28);
     border-radius: 2px;
-    background: rgba(7,11,24,.66);
-    color: #9fb6c2;
-    text-align: center;
+    background: rgba(7,11,24,.58);
+    color: #8ea7b3;
+    text-align: right;
     font-family: monospace;
     pointer-events: none;
-    backdrop-filter: blur(3px);
+    backdrop-filter: blur(2px);
   }
 
   #mobile-pulse-indicator span {
-    color: #7f9eaa;
-    font-size: 9px;
-    letter-spacing: 2px;
+    color: #6f8b98;
+    font-size: 8px;
+    letter-spacing: 1.5px;
   }
 
   #mobile-pulse-indicator strong {
     color: #d7e5e9;
-    font-size: 11px;
-    letter-spacing: .7px;
+    font-size: 10px;
+    letter-spacing: .5px;
   }
 
   #mobile-pulse-indicator small {
     grid-column: 1 / -1;
-    color: #6f8794;
-    font-size: 8px;
-    letter-spacing: .8px;
+    color: #657d89;
+    font-size: 7px;
+    letter-spacing: .7px;
   }
 
   #mobile-pulse-indicator.ready {
     border-color: #56E7F2;
-    background: rgba(10,38,48,.84);
-    box-shadow: 0 0 0 2px rgba(86,231,242,.12), 0 0 18px rgba(86,231,242,.24);
+    background: rgba(9,35,43,.78);
+    box-shadow: 0 0 12px rgba(86,231,242,.18);
   }
 
   #mobile-pulse-indicator.ready span,
@@ -61,18 +59,19 @@
   }
 
   #mobile-pulse-indicator.flash {
-    animation: mobilePulseFlash .28s ease-out;
+    animation: mobilePulseFlash .32s ease-out;
   }
 
   @keyframes mobilePulseFlash {
-    50% { transform: translateX(-50%) scale(1.08); filter: brightness(1.6); }
+    50% { transform: scale(1.06); filter: brightness(1.45); }
   }
 }
 
 @media (max-width: 420px) {
   #mobile-pulse-indicator {
-    top: calc(env(safe-area-inset-top, 0px) + 104px);
-    min-width: 172px;
-    padding: 6px 9px;
+    top: calc(env(safe-area-inset-top, 0px) + 60px);
+    right: calc(env(safe-area-inset-right, 0px) + 8px);
+    min-width: 112px;
+    padding: 5px 7px;
   }
 }
