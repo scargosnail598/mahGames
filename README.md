@@ -10,7 +10,8 @@ A mouse-only vertical arcade shooter with solo play and a simple two-player onli
 - Each pilot chooses one of four visually distinct fighters; duplicate picks are automatically separated.
 - Enemies, score, combo, pickups, boss and Pulse energy are shared.
 - Each pilot has separate hull, shield and temporary power-ups. The HUD shows the wingmate's hull.
-- The room creator runs the authoritative game simulation. The Node server relays the second pilot's input and sends snapshots back at 20 Hz. For the smoothest MVP session, the room creator should keep the game tab active.
+- The room creator runs the authoritative game simulation. The Node server relays the second pilot's input and sends snapshots back at 20 Hz. The guest renders at display refresh rate with local movement prediction, entity interpolation, projectile extrapolation and gradual authoritative correction.
+- State packets carry stable entity IDs and monotonic sequence numbers. Old packets are ignored, WebSocket backpressure drops replaceable snapshots, and the co-op badge shows measured guest control latency.
 
 This first version supports exactly two players per room. Rooms are held in memory and disappear when either player disconnects or after six hours. There are no accounts, public room lists, matchmaking or persistent scores.
 

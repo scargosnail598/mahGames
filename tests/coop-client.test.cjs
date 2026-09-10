@@ -19,7 +19,7 @@ Object.defineProperty(global,"navigator",{value:{clipboard:{writeText:async()=>{
 global.document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},querySelector(){return null;},querySelectorAll(){return[];}};
 global.addEventListener=()=>{};
 global.requestAnimationFrame=()=>{};
-global.Starfall={clamp:(v,min,max)=>Math.max(min,Math.min(max,v))};
+global.Starfall={clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),CONFIG:{PLAYER:{followSpeed:7.2}}};
 for(const name of ["Player","Projectile","Enemy","PowerUp","Boss","CompanionDrone"])Starfall[name]=class{};
 require("../js/online.js");
 
@@ -31,7 +31,7 @@ function game(width,height) {
     enemyProjectiles:[],enemies:[],powerups:[],boss:null,
     companions:[{x:width*.45,y:height*.7,side:1,playerIndex:0,fireTimer:0}],
     elapsed:12,score:42,kills:2,killChain:2,comboTimer:3,combo:1,bestCombo:1,pulseEnergy:60,nextBossTime:150,
-    state:"playing",onlineRole:"guest",updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},
+    state:"playing",onlineRole:"guest",localPlayerIndex:1,effects:{update(){}},updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},
   };
 }
 
@@ -53,4 +53,27 @@ test("snapshot hydration ignores unexpected object fields",()=>{
   snapshot.players[0].unexpected="ignored";
   guest.applySnapshot(snapshot);
   assert.equal(target.players[0].unexpected,undefined);
+});
+
+test("guest rejects stale snapshots and smooths remote entities between updates",()=>{
+  const hostGame=game(1000,800),host=new Starfall.CoopClient(hostGame);
+  const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
+  guest.role="guest";
+  const first=host.snapshot();assert.equal(guest.applySnapshot(first),true);
+  const before=guestGame.players[0].x;
+  hostGame.players[0].x+=100;
+  const second=host.snapshot();assert.equal(guest.applySnapshot(second),true);
+  assert.equal(guestGame.players[0].x,before,"snapshot target does not teleport an existing remote ship");
+  guest.updatePresentation(.016);
+  assert.ok(guestGame.players[0].x>before&&guestGame.players[0].x<250,"remote ship advances smoothly toward the new state");
+  assert.equal(guest.applySnapshot(first),false,"out-of-order state is ignored");
+});
+
+test("guest predicts its local movement before the host snapshot returns",()=>{
+  const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
+  guest.role="guest";
+  const local=guestGame.players[1],before=local.x;
+  guest.sendInput(.9,.6);
+  guest.updatePresentation(.016);
+  assert.ok(local.x>before,"local ship reacts immediately to pointer input");
 });

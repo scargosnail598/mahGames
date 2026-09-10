@@ -34,7 +34,7 @@
         "hud", "health-fill", "shield-fill", "health-text", "shield-text", "score-text", "combo-text",
         "boss-hud", "boss-fill", "pulse-button", "pulse-fill", "pulse-label", "powerup-status", "toast",
         "main-menu", "how-menu", "coop-menu", "pause-menu", "game-over-menu", "final-score", "final-kills", "final-time", "final-combo", "result-message",
-        "coop-badge", "coop-room-label", "wingmate-status", "wingmate-health", "wingmate-health-text",
+        "coop-badge", "coop-room-label", "network-latency", "wingmate-status", "wingmate-health", "wingmate-health-text",
       ];
       this.ui = {};
       ids.forEach((id) => { this.ui[id] = document.getElementById(id); });
@@ -255,6 +255,7 @@
       this.port.update(dt, this.state === "playing" ? 1 : .38);
       this.starfield.update(Starfall.THEME.reducedMotion.matches ? 0 : dt, this.state === "playing" ? 1 : .38);
       if (this.state === "playing" && this.onlineRole !== "guest") this.update(dt);
+      else if (this.state === "playing" && window.coopClient) window.coopClient.updatePresentation(dt);
       else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
       this.draw();
       requestAnimationFrame((time) => this.loop(time));

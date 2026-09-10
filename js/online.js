@@ -10,9 +10,10 @@
     companion: ["x","y","side","playerIndex","fireTimer"],
   };
 
-  function pick(source, fields, width, height) {
+  function pick(source, fields, width, height, netId) {
     const out = {};
     for (const field of fields) out[field] = source[field];
+    out.netId = netId;
     out.x = source.x / width;
     out.y = source.y / height;
     if (typeof source.targetX === "number") out.targetX = source.targetX / width;
@@ -32,6 +33,38 @@
     return object;
   }
 
+  const NETWORK_POSITION_FIELDS = new Set(["x", "y", "targetX", "targetY", "baseX", "tilt"]);
+
+  function reconcile(current, sources, Type, fields, width, height, prefix, localIndex, receivedAt) {
+    const existing = new Map((current || []).filter((item) => item._networkId).map((item) => [item._networkId, item]));
+    return sources.map((source, index) => {
+      const id = typeof source.netId === "string" ? source.netId : `${prefix}-${index}`;
+      const target = hydrate(Type, source, fields, width, height);
+      let object = existing.get(id);
+      if (!object && prefix === "player") object = (current || [])[index];
+      if (object && !(object instanceof Type)) object = null;
+      if (!object) object = target;
+      const firstNetworkUpdate = !object._networkId;
+      object._networkId = id;
+      for (const field of fields) if (!NETWORK_POSITION_FIELDS.has(field)) object[field] = target[field];
+      object._networkX = target.x;
+      object._networkY = target.y;
+      object._networkTilt = Number.isFinite(target.tilt) ? target.tilt : object.tilt;
+      object._networkAt = receivedAt;
+      if (Number.isFinite(target.baseX)) object.baseX = target.baseX;
+      if (index !== localIndex || prefix !== "player") {
+        if (Number.isFinite(target.targetX)) object.targetX = target.targetX;
+        if (Number.isFinite(target.targetY)) object.targetY = target.targetY;
+      }
+      if (firstNetworkUpdate) {
+        object.x = target.x;
+        object.y = target.y;
+        if (Number.isFinite(target.tilt)) object.tilt = target.tilt;
+      }
+      return object;
+    });
+  }
+
   class CoopClient {
     constructor(game) {
       this.game = game;
@@ -41,6 +74,14 @@
       this.intentionalClose = false;
       this.lastInputAt = 0;
       this.lastStateAt = 0;
+      this.stateSeq = 0;
+      this.inputSeq = 0;
+      this.lastGuestInputSeq = 0;
+      this.lastSnapshotAck = 0;
+      this.lastSnapshotSeq = -1;
+      this.localTarget = null;
+      this.pendingInputs = new Map();
+      this.controlLatency = null;
       this.selectedShip = 0;
       this.bindUI();
     }
@@ -51,6 +92,7 @@
       this.waiting = document.getElementById("coop-waiting");
       this.input = document.getElementById("room-code-input");
       this.codeDisplay = document.getElementById("room-code-display");
+      this.latencyLabel = document.getElementById("network-latency");
       const soloPicker = document.getElementById("solo-ship-picker");
       const picker = document.querySelector(".ship-picker");
       if (soloPicker && picker) soloPicker.appendChild(picker.cloneNode(true));
@@ -154,8 +196,10 @@
         this.room = message.room;
         this.actions.classList.add("hidden");
         this.waiting.classList.add("hidden");
+        this.latencyLabel.textContent = this.role === "host" ? "HOST" : "SYNC…";
         this.game.startCoop(this.role, this.room, message.ships, Boolean(message.shipAdjusted));
       } else if (message.type === "input" && this.role === "host") {
+        this.lastGuestInputSeq = Number.isSafeInteger(message.seq) ? message.seq : this.lastGuestInputSeq;
         const player = this.game.players[1];
         if (player) {
           player.targetX = Starfall.clamp(message.x, 0, 1) * this.game.width;
@@ -176,9 +220,14 @@
 
     sendInput(x, y) {
       const now = performance.now();
+      this.localTarget = { x:Starfall.clamp(x, 0, 1), y:Starfall.clamp(y, 0, 1) };
+      const local=this.game.players?.[this.game.localPlayerIndex];
+      if(local){local.targetX=this.localTarget.x*this.game.width;local.targetY=this.localTarget.y*this.game.height;}
       if (now - this.lastInputAt < 33) return;
       this.lastInputAt = now;
-      this.send({ type: "input", x, y });
+      const seq = ++this.inputSeq;
+      this.pendingInputs.set(seq, now);
+      this.send({ type: "input", x:this.localTarget.x, y:this.localTarget.y, seq });
     }
 
     sendPulse() { this.send({ type: "pulse" }); }
@@ -196,43 +245,111 @@
         ctx.restore();
       });
       if (this.role !== "host" || this.game.onlineRole !== "host" || now - this.lastStateAt < 50) return;
+      if (!this.socket || this.socket.bufferedAmount > 65536) return;
       this.lastStateAt = now;
       this.send({ type: "state", state: this.snapshot() });
     }
 
+    idFor(item, prefix, index) {
+      if (prefix === "player" || prefix === "companion") return `${prefix}-${index}`;
+      if (!item._networkId) item._networkId = `${prefix}-${++this.nextEntityId}`;
+      return item._networkId;
+    }
+
     snapshot() {
       const g = this.game, w = g.width, h = g.height;
+      if (!this.nextEntityId) this.nextEntityId = 0;
       return {
+        seq:++this.stateSeq, guestInputAck:this.lastGuestInputSeq,
         elapsed:g.elapsed, score:g.score, kills:g.kills, killChain:g.killChain,
         comboTimer:g.comboTimer, combo:g.combo, bestCombo:g.bestCombo,
         pulseEnergy:g.pulseEnergy, nextBossTime:g.nextBossTime, finished:g.state === "gameover",
-        players:g.players.map((item) => pick(item, FIELDS.player, w, h)),
-        playerProjectiles:g.playerProjectiles.map((item) => pick(item, FIELDS.projectile, w, h)),
-        enemyProjectiles:g.enemyProjectiles.map((item) => pick(item, FIELDS.projectile, w, h)),
-        enemies:g.enemies.map((item) => pick(item, FIELDS.enemy, w, h)),
-        powerups:g.powerups.map((item) => pick(item, FIELDS.powerup, w, h)),
-        boss:g.boss ? pick(g.boss, FIELDS.boss, w, h) : null,
-        companions:g.companions.map((item) => pick(item, FIELDS.companion, w, h)),
+        players:g.players.map((item,index) => pick(item,FIELDS.player,w,h,this.idFor(item,"player",index))),
+        playerProjectiles:g.playerProjectiles.map((item,index) => pick(item,FIELDS.projectile,w,h,this.idFor(item,"shot",index))),
+        enemyProjectiles:g.enemyProjectiles.map((item,index) => pick(item,FIELDS.projectile,w,h,this.idFor(item,"enemy-shot",index))),
+        enemies:g.enemies.map((item,index) => pick(item,FIELDS.enemy,w,h,this.idFor(item,"enemy",index))),
+        powerups:g.powerups.map((item,index) => pick(item,FIELDS.powerup,w,h,this.idFor(item,"powerup",index))),
+        boss:g.boss ? pick(g.boss,FIELDS.boss,w,h,"boss") : null,
+        companions:g.companions.map((item,index) => pick(item,FIELDS.companion,w,h,this.idFor(item,"companion",index))),
       };
     }
 
     applySnapshot(state) {
-      if (!state || !Array.isArray(state.players)) return;
-      const g=this.game, w=g.width, h=g.height;
+      if (!state || !Array.isArray(state.players)) return false;
+      if (Number.isSafeInteger(state.seq) && state.seq <= this.lastSnapshotSeq) return false;
+      if (Number.isSafeInteger(state.seq)) this.lastSnapshotSeq = state.seq;
+      const receivedAt=performance.now(),g=this.game,w=g.width,h=g.height;
       for (const key of ["elapsed","score","kills","killChain","comboTimer","combo","bestCombo","pulseEnergy","nextBossTime"]) {
         if (Number.isFinite(state[key])) g[key]=state[key];
       }
-      g.players=state.players.map((item) => hydrate(Starfall.Player,item,FIELDS.player,w,h));
+      this.acknowledgeInput(state.guestInputAck, receivedAt);
+      g.players=reconcile(g.players,state.players,Starfall.Player,FIELDS.player,w,h,"player",g.localPlayerIndex,receivedAt);
       g.player=g.players[0];
-      g.playerProjectiles=(state.playerProjectiles || []).map((item) => hydrate(Starfall.Projectile,item,FIELDS.projectile,w,h));
-      g.enemyProjectiles=(state.enemyProjectiles || []).map((item) => hydrate(Starfall.Projectile,item,FIELDS.projectile,w,h));
-      g.enemies=(state.enemies || []).map((item) => hydrate(Starfall.Enemy,item,FIELDS.enemy,w,h));
-      g.powerups=(state.powerups || []).map((item) => hydrate(Starfall.PowerUp,item,FIELDS.powerup,w,h));
-      g.boss=state.boss ? hydrate(Starfall.Boss,state.boss,FIELDS.boss,w,h) : null;
-      g.companions=(state.companions || []).map((item) => hydrate(Starfall.CompanionDrone,item,FIELDS.companion,w,h));
+      if(this.localTarget && g.players[g.localPlayerIndex]) {
+        g.players[g.localPlayerIndex].targetX=this.localTarget.x*w;
+        g.players[g.localPlayerIndex].targetY=this.localTarget.y*h;
+      }
+      g.playerProjectiles=reconcile(g.playerProjectiles,state.playerProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"shot",-1,receivedAt);
+      g.enemyProjectiles=reconcile(g.enemyProjectiles,state.enemyProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"enemy-shot",-1,receivedAt);
+      g.enemies=reconcile(g.enemies,state.enemies||[],Starfall.Enemy,FIELDS.enemy,w,h,"enemy",-1,receivedAt);
+      g.powerups=reconcile(g.powerups,state.powerups||[],Starfall.PowerUp,FIELDS.powerup,w,h,"powerup",-1,receivedAt);
+      g.boss=state.boss ? reconcile(g.boss?[g.boss]:[],[state.boss],Starfall.Boss,FIELDS.boss,w,h,"boss",-1,receivedAt)[0] : null;
+      g.companions=reconcile(g.companions,state.companions||[],Starfall.CompanionDrone,FIELDS.companion,w,h,"companion",-1,receivedAt);
       g.companion=g.companions[0] || new Starfall.CompanionDrone(1,0);
       g.updateHUD();
       if (state.finished && g.state === "playing") g.endGame();
+      return true;
+    }
+
+    acknowledgeInput(ack, now) {
+      if (!Number.isSafeInteger(ack) || ack <= 0) return;
+      this.lastSnapshotAck=Math.max(this.lastSnapshotAck,ack);
+      const sentAt=this.pendingInputs.get(ack);
+      for(const seq of this.pendingInputs.keys()) if(seq<=ack)this.pendingInputs.delete(seq);
+      if(!Number.isFinite(sentAt))return;
+      const sample=now-sentAt;
+      this.controlLatency=this.controlLatency==null?sample:this.controlLatency*.78+sample*.22;
+      const rounded=Math.round(this.controlLatency);
+      this.latencyLabel.textContent=`${rounded} ms`;
+      this.latencyLabel.classList.toggle("fair",rounded>=120&&rounded<220);
+      this.latencyLabel.classList.toggle("poor",rounded>=220);
+    }
+
+    smooth(object, dt, rate, extrapolate) {
+      if(!object || !Number.isFinite(object._networkX))return;
+      const age=Math.min(.12,Math.max(0,(performance.now()-object._networkAt)/1000));
+      const targetX=object._networkX+(extrapolate&&Number.isFinite(object.vx)?object.vx*age:0);
+      const targetY=object._networkY+(extrapolate&&Number.isFinite(object.vy)?object.vy*age:0);
+      const dx=targetX-object.x,dy=targetY-object.y;
+      if(dx*dx+dy*dy>90000){object.x=targetX;object.y=targetY;}
+      else {const blend=1-Math.exp(-rate*dt);object.x+=dx*blend;object.y+=dy*blend;}
+      if(Number.isFinite(object._networkTilt))object.tilt+=(object._networkTilt-object.tilt)*(1-Math.exp(-14*dt));
+    }
+
+    updatePresentation(dt) {
+      if(this.role!=="guest"||this.game.onlineRole!=="guest")return;
+      const g=this.game,local=g.players[g.localPlayerIndex];
+      if(local&&!local.dead){
+        const pad=30,desiredX=Starfall.clamp(local.targetX,pad,g.width-pad),desiredY=Starfall.clamp(local.targetY,105,g.height-pad);
+        const oldX=local.x,easing=1-Math.exp(-Starfall.CONFIG.PLAYER.followSpeed*dt);
+        local.x+=(desiredX-local.x)*easing;local.y+=(desiredY-local.y)*easing;
+        local.tilt+=((local.x-oldX)*.065-local.tilt)*Math.min(1,dt*9);
+        const caughtUp=this.lastSnapshotAck>=this.inputSeq;
+        if(caughtUp&&Number.isFinite(local._networkX)){
+          const dx=local._networkX-local.x,dy=local._networkY-local.y;
+          if(dx*dx+dy*dy>62500){local.x=local._networkX;local.y=local._networkY;}
+          else if(dx*dx+dy*dy>36){const correction=1-Math.exp(-1.8*dt);local.x+=dx*correction;local.y+=dy*correction;}
+        }
+      }
+      g.players.forEach((player,index)=>{if(index!==g.localPlayerIndex)this.smooth(player,dt,20,false);});
+      g.playerProjectiles.forEach((item)=>this.smooth(item,dt,28,true));
+      g.enemyProjectiles.forEach((item)=>this.smooth(item,dt,28,true));
+      g.enemies.forEach((item)=>this.smooth(item,dt,18,false));
+      g.powerups.forEach((item)=>this.smooth(item,dt,18,false));
+      if(g.boss)this.smooth(g.boss,dt,14,false);
+      g.companions.forEach((item)=>this.smooth(item,dt,20,false));
+      g.effects.update(dt);
+      g.updateHUD();
     }
 
     leave(sendMessage) {
@@ -242,6 +359,11 @@
       this.socket = null;
       this.role = null;
       this.room = null;
+      this.lastSnapshotSeq = -1;
+      this.lastSnapshotAck = 0;
+      this.pendingInputs.clear();
+      this.localTarget = null;
+      this.controlLatency = null;
       this.actions.classList.remove("hidden");
       this.waiting.classList.add("hidden");
     }

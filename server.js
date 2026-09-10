@@ -149,7 +149,7 @@ function handle(peer,message) {
   else {
     const room=rooms.get(peer.room);if(!room)return;
     if(message.type==="input" && peer===room.guest && Number.isFinite(message.x) && Number.isFinite(message.y))
-      room.host.send({type:"input",x:Math.max(0,Math.min(1,message.x)),y:Math.max(0,Math.min(1,message.y))});
+      room.host.send({type:"input",x:Math.max(0,Math.min(1,message.x)),y:Math.max(0,Math.min(1,message.y)),seq:Number.isSafeInteger(message.seq)?Math.max(0,message.seq):0});
     else if(message.type==="pulse" && peer===room.guest)room.host.send({type:"pulse"});
     else if(message.type==="state" && peer===room.host && room.guest && message.state && typeof message.state==="object")
       room.guest.send({type:"state",state:message.state});
