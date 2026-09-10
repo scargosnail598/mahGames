@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#070B18">
   <title>Starfall Squadron — Neon Ronin</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
   <main id="game-shell" aria-label="Starfall Squadron game">
@@ -56,9 +57,20 @@
         <button id="play-button" class="primary-button" type="button">SOLO MISSION</button>
         <button id="coop-button" class="primary-button coop-entry" type="button">ONLINE CO-OP</button>
         <button id="how-button" class="secondary-button" type="button">HOW TO PLAY</button>
-        <button id="menu-sound-button" class="secondary-button sound-button" type="button">SOUND: ON</button>
-        <label class="music-control" for="menu-music"><span>MUSIC <small>DISTANT SIGNAL</small></span><input id="menu-music" class="music-volume" type="range" min="0" max="35" step="1" value="12" aria-label="Music volume"><output for="menu-music">12%</output></label>
+        <button id="settings-button" class="secondary-button" type="button">SETTINGS</button>
         <p class="mouse-note">Designed for comfortable, mouse-only play</p>
+      </div>
+    </section>
+
+    <section id="settings-menu" class="overlay" aria-label="Settings">
+      <div class="menu-card settings-card">
+        <div class="eyebrow">SYSTEM CONFIGURATION</div>
+        <h2>SETTINGS</h2>
+        <div class="settings-group">
+          <button id="menu-sound-button" class="secondary-button sound-button" type="button">SOUND: ON</button>
+          <label class="music-control" for="menu-music"><span>MUSIC <small>DISTANT SIGNAL</small></span><input id="menu-music" class="music-volume" type="range" min="0" max="35" step="1" value="12" aria-label="Music volume"><output for="menu-music">12%</output></label>
+        </div>
+        <button id="settings-back-button" class="primary-button" type="button">BACK</button>
       </div>
     </section>
 
@@ -146,5 +158,6 @@
   <script src="js/entities.js"></script>
   <script src="js/game.js"></script>
   <script src="js/online.js"></script>
+  <script src="js/settings.js"></script>
 </body>
 </html>
