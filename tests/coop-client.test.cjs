@@ -87,6 +87,7 @@ test("new guest-owned shots spawn beside the locally predicted guest ship",()=>{
   hostGame.playerProjectiles=[{x:600,y:560,vx:0,vy:-720,friendly:true,damage:14,radius:5,color:"#fff",life:2,fromBoss:false,dead:false}];
   const snapshot=host.snapshot();
   const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
+  Object.setPrototypeOf(guestGame.players[1],Starfall.Player.prototype);
   guest.role="guest";guest.controlLatency=100;
   guestGame.players[1].x=420;
   guest.applySnapshot(snapshot);
