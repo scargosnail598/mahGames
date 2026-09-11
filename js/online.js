@@ -67,13 +67,19 @@
     }
 
     installFxRelay(){
-      const g=this.game;if(g.__coopFxRelayInstalled)return;g.__coopFxRelayInstalled=true;
-      const pulse=g.activatePulse.bind(g);
-      g.activatePulse=(playerIndex)=>{const before=g.pulseEnergy,idx=playerIndex==null?g.localPlayerIndex:playerIndex;pulse(playerIndex);if(g.onlineRole==="host"&&before>=Starfall.CONFIG.PULSE.maxEnergy&&g.pulseEnergy===0)this.queueFx("pulse",{playerIndex:idx});};
-      const destroyEnemy=g.destroyEnemy.bind(g);
-      g.destroyEnemy=(enemy,byPulse,collision)=>{const alive=enemy&&!enemy.dead,x=enemy?.x,y=enemy?.y,type=enemy?.type;destroyEnemy(enemy,byPulse,collision);if(alive&&enemy?.dead&&g.onlineRole==="host")this.queueFx("enemy_burst",{x:x/g.width,y:y/g.height,type,byPulse:Boolean(byPulse)});};
-      const destroyBoss=g.destroyBoss.bind(g);
-      g.destroyBoss=()=>{const boss=g.boss,alive=boss&&!boss.dead,x=boss?.x,y=boss?.y;destroyBoss();if(alive&&boss?.dead&&g.onlineRole==="host")this.queueFx("boss_burst",{x:x/g.width,y:y/g.height});};
+      const g=this.game;if(!g||g.__coopFxRelayInstalled)return;g.__coopFxRelayInstalled=true;
+      if(typeof g.activatePulse==="function"){
+        const pulse=g.activatePulse.bind(g);
+        g.activatePulse=(playerIndex)=>{const before=g.pulseEnergy,idx=playerIndex==null?g.localPlayerIndex:playerIndex;pulse(playerIndex);if(g.onlineRole==="host"&&before>=Starfall.CONFIG.PULSE.maxEnergy&&g.pulseEnergy===0)this.queueFx("pulse",{playerIndex:idx});};
+      }
+      if(typeof g.destroyEnemy==="function"){
+        const destroyEnemy=g.destroyEnemy.bind(g);
+        g.destroyEnemy=(enemy,byPulse,collision)=>{const alive=enemy&&!enemy.dead,x=enemy?.x,y=enemy?.y,type=enemy?.type;destroyEnemy(enemy,byPulse,collision);if(alive&&enemy?.dead&&g.onlineRole==="host")this.queueFx("enemy_burst",{x:x/g.width,y:y/g.height,type,byPulse:Boolean(byPulse)});};
+      }
+      if(typeof g.destroyBoss==="function"){
+        const destroyBoss=g.destroyBoss.bind(g);
+        g.destroyBoss=()=>{const boss=g.boss,alive=boss&&!boss.dead,x=boss?.x,y=boss?.y;destroyBoss();if(alive&&boss?.dead&&g.onlineRole==="host")this.queueFx("boss_burst",{x:x/g.width,y:y/g.height});};
+      }
     }
 
     queueFx(event,data){if(this.role!=="host")return;this.fxQueue.push({event,data});if(this.fxQueue.length>48)this.fxQueue.splice(0,this.fxQueue.length-48);}
