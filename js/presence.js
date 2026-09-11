@@ -188,16 +188,24 @@
     }
   }
 
-  window.addEventListener("DOMContentLoaded",()=>{
+  function start() {
+    if(window.presenceClient)return;
     const presence=new PresenceClient();window.presenceClient=presence;
-    const coop=window.coopClient;
-    if(coop){
+    let attempts=0;
+    const hook=()=>{
+      const coop=window.coopClient;
+      if(!coop){if(attempts++<100)setTimeout(hook,50);return;}
+      if(coop._presenceHooked)return;
+      coop._presenceHooked=true;
       const original=coop.onMessage.bind(coop);
       coop.onMessage=function(event){
         let message=null;try{message=JSON.parse(event.data);}catch(_){}
         original(event);
         if(message?.type==="created")presence.publishRoom(message.room);
       };
-    }
-  });
+    };
+    hook();
+  }
+
+  if(document.readyState==="loading")window.addEventListener("DOMContentLoaded",start,{once:true});else start();
 })();
