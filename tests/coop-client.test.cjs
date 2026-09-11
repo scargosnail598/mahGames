@@ -44,7 +44,7 @@ test("snapshot uses normalized positions and hydrates at another viewport size",
   const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
   guest.applySnapshot(snapshot);
   assert.equal(guestGame.environment.id,"shogun-valley");
-  assert.equal(guestGame.environmentApplied,undefined,"unchanged world is not redundantly reapplied on every snapshot");
+  assert.equal(guestGame.environmentApplied,undefined,"an unchanged environment is not needlessly reapplied");
   assert.equal(guestGame.players[0].x,200);
   assert.equal(guestGame.players[1].x,300);
   assert.equal(guestGame.playerProjectiles[0].y,160);
@@ -80,4 +80,18 @@ test("guest predicts its local movement before the host snapshot returns",()=>{
   guest.sendInput(.9,.6);
   guest.updatePresentation(.016);
   assert.ok(local.x>before,"local ship reacts immediately to pointer input");
+});
+
+test("new guest-owned shots spawn beside the locally predicted guest ship",()=>{
+  const hostGame=game(1000,800),host=new Starfall.CoopClient(hostGame);
+  hostGame.playerProjectiles=[{x:600,y:560,vx:0,vy:-720,friendly:true,damage:14,radius:5,color:"#fff",life:2,fromBoss:false,dead:false}];
+  const snapshot=host.snapshot();
+  const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
+  guest.role="guest";guest.controlLatency=100;
+  guestGame.players[1].x=420;
+  guest.applySnapshot(snapshot);
+  const shot=guestGame.playerProjectiles[0];
+  assert.equal(shot._localGuestShot,true,"the fresh projectile is classified as the guest's shot");
+  assert.ok(Math.abs(shot.x-420)<8,"the shot is horizontally aligned to the locally predicted guest ship");
+  assert.ok(shot.y<280,"latency compensation advances the guest shot along its travel direction");
 });
