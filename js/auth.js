@@ -15,6 +15,7 @@
 
   loadModule("js/leaderboard.js","starfall-leaderboard");
   loadModule("js/presence.js","starfall-presence");
+  loadModule("js/presence-guard.js","starfall-presence-guard");
 
   window.addEventListener("DOMContentLoaded",()=>{
     const clientId=document.querySelector('meta[name="google-client-id"]')?.content||"";
