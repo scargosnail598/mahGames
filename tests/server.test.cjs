@@ -48,6 +48,7 @@ test("guest server startup and gameplay assets remain functional", async () => {
   assert.match(index.headers.get("content-security-policy"),/https:\/\/accounts\.google\.com\/gsi\/client/);
   assert.match(index.headers.get("cache-control"),/no-store/);
   assert.equal((await fetch(base+"/js/game.js")).status,200);
+  assert.equal((await fetch(base+"/js/leaderboard.js")).status,200);
   assert.equal((await fetch(base+"/server.js")).status,403);
 });
 
@@ -69,7 +70,7 @@ test("verified Google identity creates a user and secure server session",async()
     return {sub:"google-user-123",name:"Nova Pilot",email:"Nova@Example.com",email_verified:true,picture:"https://lh3.googleusercontent.com/avatar.jpg"};
   };
   const response=await fetch(`http://127.0.0.1:${server.address().port}/api/auth/google`,{method:"POST",headers:{"content-type":"application/json","x-forwarded-proto":"https"},body:JSON.stringify({credential:"verified-id-token"})});
-  assert.equal(response.status,200);assert.deepEqual(await response.json(),{user:{id:1,displayName:"Nova Pilot",email:"nova@example.com",avatarUrl:"https://lh3.googleusercontent.com/avatar.jpg"}});
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),{user:{id:1,displayName:"Nova Pilot",email:"nova@example.com",avatarUrl:"https://lh3.googleusercontent.com/avatar.jpg",bestScore:0}});
   const setCookie=response.headers.get("set-cookie");
   assert.match(setCookie,/^starfall_session=[A-Za-z0-9_-]{43};/);assert.match(setCookie,/HttpOnly/);assert.match(setCookie,/SameSite=Lax/);assert.match(setCookie,/Secure/);
   sessionCookie=setCookie.split(";",1)[0];
@@ -77,6 +78,22 @@ test("verified Google identity creates a user and secure server session",async()
   assert.notEqual(stored.id_hash,token,"only a hash of the session token is stored");
   const me=await fetch(`http://127.0.0.1:${server.address().port}/api/me`,{headers:{cookie:sessionCookie}});
   assert.equal(me.status,200);assert.equal((await me.json()).user.displayName,"Nova Pilot");
+});
+
+test("signed-in solo scores persist and leaderboard keeps each pilot's best",async()=>{
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const first=await fetch(base+"/api/scores",{method:"POST",headers:{cookie:sessionCookie,"content-type":"application/json"},body:JSON.stringify({score:1250,kills:12,durationSeconds:91,environment:"neo-shibuya",mode:"solo"})});
+  assert.equal(first.status,201);assert.deepEqual(await first.json(),{saved:true,bestScore:1250,personalBest:true});
+  const lower=await fetch(base+"/api/scores",{method:"POST",headers:{cookie:sessionCookie,"content-type":"application/json"},body:JSON.stringify({score:900,kills:8,durationSeconds:70,environment:"shogun-valley",mode:"solo"})});
+  assert.equal(lower.status,201);assert.deepEqual(await lower.json(),{saved:true,bestScore:1250,personalBest:false});
+  const board=await fetch(base+"/api/leaderboard");
+  assert.equal(board.status,200);
+  const boardBody=await board.json();
+  assert.equal(boardBody.entries.length,1);assert.equal(boardBody.entries[0].displayName,"Nova Pilot");assert.equal(boardBody.entries[0].score,1250);
+  const me=await fetch(base+"/api/me",{headers:{cookie:sessionCookie}});
+  assert.equal((await me.json()).user.bestScore,1250);
+  const coop=await fetch(base+"/api/scores",{method:"POST",headers:{cookie:sessionCookie,"content-type":"application/json"},body:JSON.stringify({score:9999,kills:1,durationSeconds:10,environment:"neo-shibuya",mode:"coop"})});
+  assert.equal(coop.status,400);
 });
 
 test("logout invalidates the session and clears its cookie",async()=>{
