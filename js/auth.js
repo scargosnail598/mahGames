@@ -1,6 +1,20 @@
 (function () {
   "use strict";
 
+  const authScript=document.currentScript;
+  const assetVersion=authScript&&authScript.src.includes("?")?authScript.src.slice(authScript.src.indexOf("?")):"";
+
+  function loadLeaderboardModule() {
+    if(document.querySelector('script[data-starfall-leaderboard]'))return;
+    const script=document.createElement("script");
+    script.src=`js/leaderboard.js${assetVersion}`;
+    script.defer=true;
+    script.dataset.starfallLeaderboard="true";
+    document.head.appendChild(script);
+  }
+
+  loadLeaderboardModule();
+
   window.addEventListener("DOMContentLoaded",()=>{
     const clientId=document.querySelector('meta[name="google-client-id"]')?.content||"";
     const control=document.getElementById("auth-control");
@@ -31,14 +45,17 @@
     }
 
     function showLoggedOut() {
-      user=null;control.classList.remove("hidden");signIn.classList.remove("hidden");identity.classList.add("hidden");closePanels();
+      user=null;window.starfallUser=null;control.classList.remove("hidden");signIn.classList.remove("hidden");identity.classList.add("hidden");closePanels();
     }
 
     function showUser(nextUser) {
-      user=nextUser;control.classList.remove("hidden");signIn.classList.add("hidden");identity.classList.remove("hidden");
+      user=nextUser;window.starfallUser=user;control.classList.remove("hidden");signIn.classList.add("hidden");identity.classList.remove("hidden");
       identity.querySelector("strong").textContent=user.displayName;avatar(identity,user.avatarUrl,user.displayName);
       const heading=profilePanel.querySelector(".auth-profile-heading");
       heading.querySelector("strong").textContent=user.displayName;heading.querySelector("small").textContent=user.email;avatar(heading,user.avatarUrl,user.displayName);
+      let best=profilePanel.querySelector(".auth-best-score");
+      if(!best){best=document.createElement("p");best.className="auth-best-score";profilePanel.insertBefore(best,signOut);}
+      best.textContent=`BEST SCORE  ${(Number(user.bestScore)||0).toLocaleString()}`;
       closePanels();
     }
 
