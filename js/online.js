@@ -43,6 +43,7 @@
       const isNew=!object;
       if(!object)object=createNetworkObject(Type,source,fields,w,h);
       object._networkId=id;
+      object._networkNew=isNew;
       for(const field of fields)if(!POS.has(field))object[field]=source[field];
       object._networkX=source.x*w;object._networkY=source.y*h;
       object._networkTilt=Number.isFinite(source.tilt)?source.tilt:object.tilt;
@@ -129,11 +130,37 @@
     idFor(item,prefix,index){if(prefix==="player"||prefix==="companion")return `${prefix}-${index}`;if(!item._networkId)item._networkId=`${prefix}-${++this.nextEntityId}`;return item._networkId;}
     snapshot(){const g=this.game,w=g.width,h=g.height,fx=this.drainFx(),state={seq:++this.stateSeq,guestInputAck:this.lastGuestInputSeq,environment:g.environment?.id||"neo-shibuya",elapsed:g.elapsed,score:g.score,kills:g.kills,killChain:g.killChain,comboTimer:g.comboTimer,combo:g.combo,bestCombo:g.bestCombo,pulseEnergy:g.pulseEnergy,nextBossTime:g.nextBossTime,finished:g.state==="gameover",players:g.players.map((item,index)=>pick(item,FIELDS.player,w,h,this.idFor(item,"player",index))),playerProjectiles:g.playerProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"shot",index))),enemyProjectiles:g.enemyProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"enemy-shot",index))),enemies:g.enemies.map((item,index)=>pick(item,FIELDS.enemy,w,h,this.idFor(item,"enemy",index))),powerups:g.powerups.map((item,index)=>pick(item,FIELDS.powerup,w,h,this.idFor(item,"powerup",index))),boss:g.boss?pick(g.boss,FIELDS.boss,w,h,"boss"):null,companions:g.companions.map((item,index)=>pick(item,FIELDS.companion,w,h,this.idFor(item,"companion",index)))};if(fx)state.fx=fx;return state;}
 
+    alignLocalGuestShots(state,projectiles){
+      const g=this.game,localIndex=g.localPlayerIndex;
+      if(this.role!=="guest"||localIndex<0||!Array.isArray(state.players)||!state.players[localIndex])return;
+      const local=g.players?.[localIndex],authoritative=state.players[localIndex];
+      if(!local||!Number.isFinite(authoritative.x)||!Number.isFinite(authoritative.y))return;
+      const authX=authoritative.x*g.width,authY=authoritative.y*g.height;
+      const hostIndex=localIndex===0?1:0,hostState=state.players[hostIndex];
+      const lead=Math.min(.14,Math.max(.04,(Number(this.controlLatency)||80)/2000+.035));
+      const sources=state.playerProjectiles||[];
+      for(let i=0;i<projectiles.length;i+=1){
+        const object=projectiles[i],source=sources[i];if(!object||!source||!source.friendly)continue;
+        if(object._networkNew){
+          const sx=Number(source.x)*g.width,sy=Number(source.y)*g.height;
+          const localDx=sx-authX,localDy=sy-authY,localDist=localDx*localDx+localDy*localDy;
+          let hostDist=Infinity;
+          if(hostState&&Number.isFinite(hostState.x)&&Number.isFinite(hostState.y)){const hx=hostState.x*g.width,hy=hostState.y*g.height,dx=sx-hx,dy=sy-hy;hostDist=dx*dx+dy*dy;}
+          object._localGuestShot=localDist<hostDist&&localDist<Math.pow(Math.max(90,g.height*.16),2);
+        }
+        if(!object._localGuestShot)continue;
+        const offsetX=local.x-authX;
+        object._networkX=Number(source.x)*g.width+offsetX;
+        object._networkY=Number(source.y)*g.height+(Number(source.vy)||0)*lead;
+        if(object._networkNew){object.x=object._networkX;object.y=object._networkY;}
+      }
+    }
+
     applySnapshot(state){
       if(!state||!Array.isArray(state.players))return false;if(Number.isSafeInteger(state.seq)&&state.seq<=this.lastSnapshotSeq)return false;if(Number.isSafeInteger(state.seq))this.lastSnapshotSeq=state.seq;const receivedAt=performance.now(),g=this.game,w=g.width,h=g.height;if(typeof state.environment==="string"&&typeof g.setEnvironment==="function"&&state.environment!==g.environment?.id)g.setEnvironment(state.environment,false);
       for(const key of ["elapsed","score","kills","killChain","comboTimer","combo","bestCombo","pulseEnergy","nextBossTime"])if(Number.isFinite(state[key]))g[key]=state[key];this.acknowledgeInput(state.guestInputAck,receivedAt);
       g.players=reconcile(g.players,state.players,Starfall.Player,FIELDS.player,w,h,"player",g.localPlayerIndex,receivedAt);g.player=g.players[0];if(this.localTarget&&g.players[g.localPlayerIndex]){g.players[g.localPlayerIndex].targetX=this.localTarget.x*w;g.players[g.localPlayerIndex].targetY=this.localTarget.y*h;}
-      g.playerProjectiles=reconcile(g.playerProjectiles,state.playerProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"shot",-1,receivedAt);g.enemyProjectiles=reconcile(g.enemyProjectiles,state.enemyProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"enemy-shot",-1,receivedAt);g.enemies=reconcile(g.enemies,state.enemies||[],Starfall.Enemy,FIELDS.enemy,w,h,"enemy",-1,receivedAt);g.powerups=reconcile(g.powerups,state.powerups||[],Starfall.PowerUp,FIELDS.powerup,w,h,"powerup",-1,receivedAt);g.boss=state.boss?reconcile(g.boss?[g.boss]:[],[state.boss],Starfall.Boss,FIELDS.boss,w,h,"boss",-1,receivedAt)[0]:null;g.companions=reconcile(g.companions,state.companions||[],Starfall.CompanionDrone,FIELDS.companion,w,h,"companion",-1,receivedAt);g.companion=g.companions[0]||new Starfall.CompanionDrone(1,0);
+      g.playerProjectiles=reconcile(g.playerProjectiles,state.playerProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"shot",-1,receivedAt);this.alignLocalGuestShots(state,g.playerProjectiles);g.enemyProjectiles=reconcile(g.enemyProjectiles,state.enemyProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"enemy-shot",-1,receivedAt);g.enemies=reconcile(g.enemies,state.enemies||[],Starfall.Enemy,FIELDS.enemy,w,h,"enemy",-1,receivedAt);g.powerups=reconcile(g.powerups,state.powerups||[],Starfall.PowerUp,FIELDS.powerup,w,h,"powerup",-1,receivedAt);g.boss=state.boss?reconcile(g.boss?[g.boss]:[],[state.boss],Starfall.Boss,FIELDS.boss,w,h,"boss",-1,receivedAt)[0]:null;g.companions=reconcile(g.companions,state.companions||[],Starfall.CompanionDrone,FIELDS.companion,w,h,"companion",-1,receivedAt);g.companion=g.companions[0]||new Starfall.CompanionDrone(1,0);
       if(Array.isArray(state.fx))for(const fx of state.fx)this.playFx(fx?.event,fx?.data);g.updateHUD();if(state.finished&&g.state==="playing")g.endGame();return true;
     }
 
