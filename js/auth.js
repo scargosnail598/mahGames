@@ -4,16 +4,17 @@
   const authScript=document.currentScript;
   const assetVersion=authScript&&authScript.src.includes("?")?authScript.src.slice(authScript.src.indexOf("?")):"";
 
-  function loadLeaderboardModule() {
-    if(document.querySelector('script[data-starfall-leaderboard]'))return;
+  function loadModule(path,marker) {
+    if(document.querySelector(`script[data-${marker}]`))return;
     const script=document.createElement("script");
-    script.src=`js/leaderboard.js${assetVersion}`;
+    script.src=`${path}${assetVersion}`;
     script.defer=true;
-    script.dataset.starfallLeaderboard="true";
+    script.dataset[marker.replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]="true";
     document.head.appendChild(script);
   }
 
-  loadLeaderboardModule();
+  loadModule("js/leaderboard.js","starfall-leaderboard");
+  loadModule("js/presence.js","starfall-presence");
 
   window.addEventListener("DOMContentLoaded",()=>{
     const clientId=document.querySelector('meta[name="google-client-id"]')?.content||"";
@@ -28,6 +29,10 @@
     const status=document.getElementById("auth-status");
     const googleSlot=document.getElementById("google-signin-slot");
     let user=null,googlePromise=null,googleInitialized=false,buttonRendered=false;
+
+    function publishAuth(nextUser) {
+      window.dispatchEvent(new CustomEvent("starfall:auth",{detail:{user:nextUser||null}}));
+    }
 
     function initials(name) {
       return String(name||"P").trim().split(/\s+/).slice(0,2).map(part=>part[0]||"").join("").toUpperCase();
@@ -45,7 +50,7 @@
     }
 
     function showLoggedOut() {
-      user=null;window.starfallUser=null;control.classList.remove("hidden");signIn.classList.remove("hidden");identity.classList.add("hidden");closePanels();
+      user=null;window.starfallUser=null;control.classList.remove("hidden");signIn.classList.remove("hidden");identity.classList.add("hidden");closePanels();publishAuth(null);
     }
 
     function showUser(nextUser) {
@@ -56,7 +61,7 @@
       let best=profilePanel.querySelector(".auth-best-score");
       if(!best){best=document.createElement("p");best.className="auth-best-score";profilePanel.insertBefore(best,signOut);}
       best.textContent=`BEST SCORE  ${(Number(user.bestScore)||0).toLocaleString()}`;
-      closePanels();
+      closePanels();publishAuth(user);
     }
 
     async function exchangeCredential(response) {
