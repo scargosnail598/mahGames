@@ -13,6 +13,9 @@ const APP_VERSION = process.env.APP_VERSION || "dev";
 const ROOT = __dirname;
 const MAX_MESSAGE = 128 * 1024;
 const rooms = new Map();
+const presencePeers = new Set();
+const presenceByUser = new Map();
+const invites = new Map();
 const auth = new AuthService({databasePath:process.env.AUTH_DB_PATH||path.join(ROOT,"data","starfall.sqlite")});
 
 const MIME = {
@@ -29,7 +32,7 @@ async function staticHandler(request, response) {
   catch (_) { response.writeHead(400); response.end("Bad request"); return; }
   if (url.pathname === "/healthz") {
     response.writeHead(200, { "content-type":"application/json", "cache-control":"no-store" });
-    response.end(JSON.stringify({ ok:true, rooms:rooms.size, version:APP_VERSION }));
+    response.end(JSON.stringify({ ok:true, rooms:rooms.size, online:presenceByUser.size, version:APP_VERSION }));
     return;
   }
   if(await auth.handle(request,response,url.pathname))return;
@@ -85,12 +88,13 @@ function frame(opcode, payload) {
 }
 
 class Peer {
-  constructor(socket) {
-    this.socket=socket; this.buffer=Buffer.alloc(0); this.fragments=[]; this.fragmentBytes=0;
+  constructor(socket, kind) {
+    this.socket=socket; this.kind=kind||"game"; this.buffer=Buffer.alloc(0); this.fragments=[]; this.fragmentBytes=0;
     this.fragmenting=false; this.room=null; this.role=null; this.alive=true; this.windowStarted=Date.now(); this.messages=0;
+    this.user=null; this.available=false; this.activity="online";
     socket.on("data", (data) => this.read(data));
-    socket.on("close", () => leave(this));
-    socket.on("error", () => leave(this));
+    socket.on("close", () => disconnect(this));
+    socket.on("error", () => disconnect(this));
   }
   send(message) {
     if (!this.socket.destroyed) this.socket.write(frame(1,JSON.stringify(message)));
@@ -115,7 +119,7 @@ class Peer {
       this.buffer=this.buffer.subarray(offset+4+length);
       for(let i=0;i<payload.length;i++)payload[i]^=mask[i%4];
       if(opcode>=8 && (!fin || payload.length>125)){this.close(1002,"Invalid control frame");return;}
-      if(opcode===8){leave(this);this.close(1000);return;}
+      if(opcode===8){disconnect(this);this.close(1000);return;}
       if(opcode===9){this.socket.write(frame(10,payload));continue;}
       if(opcode===10){this.alive=true;continue;}
       if(opcode!==0 && opcode!==1){this.close(1003,"Text only");return;}
@@ -132,7 +136,7 @@ class Peer {
     if(now-this.windowStarted>1000){this.windowStarted=now;this.messages=0;}
     if(++this.messages>90){this.close(1008,"Rate limit");return;}
     let message;try{message=JSON.parse(text);}catch(_){return;}
-    handle(this,message);
+    if(this.kind==="presence")handlePresence(this,message);else handle(this,message);
   }
 }
 
@@ -149,6 +153,76 @@ function ship(value) { return Number.isInteger(value) && value >= 0 && value < 4
 const ENVIRONMENTS=new Set(["neo-shibuya","neon-rift","outer-rim","shogun-valley"]);
 function environment(value) { return ENVIRONMENTS.has(value) ? value : "neo-shibuya"; }
 
+function publicPresence(peer) {
+  const user=peer.user||{};
+  return {userId:Number(user.id),displayName:user.displayName||"Pilot",avatarUrl:user.avatarUrl||"",bestScore:Number(user.bestScore||0),available:Boolean(peer.available),activity:peer.activity==="in_game"?"in_game":"online"};
+}
+
+function presenceSnapshot() {
+  const users=[];
+  for(const peers of presenceByUser.values()){
+    const peer=[...peers][0];
+    if(peer)users.push(publicPresence(peer));
+  }
+  users.sort((a,b)=>Number(b.available)-Number(a.available)||b.bestScore-a.bestScore||a.displayName.localeCompare(b.displayName));
+  return users;
+}
+
+function broadcastPresence() {
+  const message={type:"presence_list",users:presenceSnapshot()};
+  for(const peer of presencePeers)peer.send(message);
+}
+
+function registerPresence(peer,user) {
+  peer.user=user;presencePeers.add(peer);
+  const id=Number(user.id);let peers=presenceByUser.get(id);
+  if(!peers){peers=new Set();presenceByUser.set(id,peers);}peers.add(peer);
+  peer.send({type:"presence_ready",userId:id});broadcastPresence();
+}
+
+function cleanupInvite(invite,notifyType) {
+  if(!invite)return;
+  invites.delete(invite.id);
+  if(notifyType){for(const peer of presenceByUser.get(invite.fromUserId)||[])peer.send({type:notifyType,inviteId:invite.id,userId:invite.toUserId});}
+}
+
+function handlePresence(peer,message) {
+  if(!peer.user||!message||typeof message.type!=="string")return;
+  if(message.type==="presence"){
+    peer.available=Boolean(message.available)&&message.activity!=="in_game";
+    peer.activity=message.activity==="in_game"?"in_game":"online";
+    broadcastPresence();return;
+  }
+  if(message.type==="invite"){
+    const targetUserId=Number(message.targetUserId),fromUserId=Number(peer.user.id);
+    if(!Number.isSafeInteger(targetUserId)||targetUserId===fromUserId){peer.send({type:"error",message:"INVALID INVITE"});return;}
+    const targets=presenceByUser.get(targetUserId);
+    const target=targets?[...targets].find(item=>item.available&&item.activity!=="in_game"):null;
+    if(!peer.available||peer.activity==="in_game"||!target){peer.send({type:"error",message:"PILOT IS NOT AVAILABLE"});return;}
+    for(const invite of invites.values())if(invite.fromUserId===fromUserId&&invite.toUserId===targetUserId)cleanupInvite(invite);
+    const id=crypto.randomBytes(12).toString("base64url");
+    const invite={id,fromUserId,toUserId:targetUserId,createdAt:Date.now(),accepted:false};invites.set(id,invite);
+    target.send({type:"invite_received",inviteId:id,from:publicPresence(peer)});
+    peer.send({type:"invite_sent",inviteId:id,userId:targetUserId});return;
+  }
+  if(message.type==="invite_accept"||message.type==="invite_decline"){
+    const id=String(message.inviteId||""),invite=invites.get(id);
+    if(!invite||invite.toUserId!==Number(peer.user.id)){peer.send({type:"error",message:"INVITE EXPIRED"});return;}
+    if(message.type==="invite_decline"){
+      cleanupInvite(invite,"invite_declined");return;
+    }
+    invite.accepted=true;peer.available=false;broadcastPresence();
+    for(const source of presenceByUser.get(invite.fromUserId)||[])source.send({type:"invite_accepted",inviteId:id,userId:invite.toUserId});
+    peer.send({type:"invite_accept_confirmed",inviteId:id});return;
+  }
+  if(message.type==="invite_room"){
+    const id=String(message.inviteId||""),room=String(message.room||"").toUpperCase(),invite=invites.get(id);
+    if(!invite||!invite.accepted||invite.fromUserId!==Number(peer.user.id)||room.length!==5||!rooms.has(room)){peer.send({type:"error",message:"ROOM LINK FAILED"});return;}
+    for(const target of presenceByUser.get(invite.toUserId)||[])target.send({type:"invite_room",inviteId:id,room});
+    invites.delete(id);return;
+  }
+}
+
 function leave(peer) {
   if(!peer.room)return;
   const room=rooms.get(peer.room);peer.room=null;
@@ -156,6 +230,19 @@ function leave(peer) {
   const other=room.host===peer?room.guest:room.host;
   if(other){other.send({type:"peer_left"});other.room=null;}
   rooms.delete(room.code);
+}
+
+function disconnect(peer) {
+  leave(peer);
+  if(peer.kind!=="presence"||!peer.user)return;
+  presencePeers.delete(peer);
+  const userId=Number(peer.user.id),peers=presenceByUser.get(userId);
+  if(peers){peers.delete(peer);if(!peers.size)presenceByUser.delete(userId);}
+  for(const invite of [...invites.values()]){
+    if(invite.fromUserId===userId)cleanupInvite(invite);
+    else if(invite.toUserId===userId)cleanupInvite(invite,"invite_expired");
+  }
+  broadcastPresence();
 }
 
 function handle(peer,message) {
@@ -191,21 +278,27 @@ const server=http.createServer((request,response)=>{
 });
 server.on("upgrade",(request,socket)=>{
   const connection=String(request.headers.connection||"").toLowerCase().split(",").map(value=>value.trim());
-  if(new URL(request.url,"http://localhost").pathname!=="/ws" || request.headers.upgrade?.toLowerCase()!=="websocket" || !connection.includes("upgrade") || request.headers["sec-websocket-version"]!=="13")return socket.destroy();
+  let pathname;try{pathname=new URL(request.url,"http://localhost").pathname;}catch(_){return socket.destroy();}
+  if((pathname!=="/ws"&&pathname!=="/presence") || request.headers.upgrade?.toLowerCase()!=="websocket" || !connection.includes("upgrade") || request.headers["sec-websocket-version"]!=="13")return socket.destroy();
   if(ALLOWED_ORIGIN && request.headers.origin!==ALLOWED_ORIGIN)return socket.destroy();
+  const presenceUser=pathname==="/presence"?auth.currentUser(request):null;
+  if(pathname==="/presence"&&!presenceUser)return socket.destroy();
   const key=request.headers["sec-websocket-key"];
   if(!key || !/^[A-Za-z0-9+/]{22}==$/.test(key))return socket.destroy();
   const accept=crypto.createHash("sha1").update(key+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
   socket.write("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+accept+"\r\n\r\n");
-  new Peer(socket);
+  const peer=new Peer(socket,pathname==="/presence"?"presence":"game");
+  if(presenceUser)registerPresence(peer,presenceUser);
 });
 
 const heartbeat=setInterval(()=>{
-  for(const room of rooms.values())for(const peer of [room.host,room.guest])if(peer){
-    if(!peer.alive)peer.socket.destroy();else{peer.alive=false;peer.socket.write(frame(9,"ping"));}
-  }
+  const peers=new Set(presencePeers);
+  for(const room of rooms.values())for(const peer of [room.host,room.guest])if(peer)peers.add(peer);
+  for(const peer of peers){if(!peer.alive)peer.socket.destroy();else{peer.alive=false;peer.socket.write(frame(9,"ping"));}}
   const cutoff=Date.now()-6*60*60*1000;
   for(const room of rooms.values())if(room.createdAt<cutoff){room.host?.close(1001,"Room expired");room.guest?.close(1001,"Room expired");rooms.delete(room.code);}
+  const inviteCutoff=Date.now()-30000;
+  for(const invite of [...invites.values()])if(invite.createdAt<inviteCutoff)cleanupInvite(invite,"invite_expired");
 },30000);
 heartbeat.unref();
 
@@ -213,4 +306,4 @@ server.listen(PORT,HOST,()=>console.log(`Starfall co-op listening on http://${HO
 
 server.on("close",()=>auth.close());
 
-module.exports={server,rooms,auth};
+module.exports={server,rooms,auth,presenceByUser,invites};
