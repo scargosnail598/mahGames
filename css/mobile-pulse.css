@@ -1,10 +1,10 @@
-/* Mobile Pulse Blast: circular top-right charge indicator, gesture-only activation. */
+/* Pulse Blast HUD: desktop keeps the clickable control; touch uses the compact gesture indicator. */
 #mobile-pulse-indicator { display:none; }
 
-/* The legacy clickable Pulse control is retired; touch uses double tap. */
-#pulse-button { display:none !important; }
-
 @media (pointer: coarse), (hover: none) {
+  /* Touch devices use double-tap activation and the compact charge indicator. */
+  #pulse-button { display:none !important; }
+
   #mobile-pulse-indicator {
     --pulse-charge: 0%;
     position: absolute;
