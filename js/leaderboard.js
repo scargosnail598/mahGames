@@ -78,14 +78,56 @@
     const game=window.starfallGame;
     if(game&&!game.__leaderboardWrapped){
       game.__leaderboardWrapped=true;
-      const original=game.endGame.bind(game);
-      game.endGame=function(){
-        if(this.state!=="playing")return original();
-        const solo=!this.onlineRole;
-        const result=solo?{score:Math.max(0,Math.round(this.score||0)),kills:Math.max(0,Math.round(this.kills||0)),durationSeconds:Math.max(0,Math.floor(this.elapsed||0)),environment:this.environment?.id||"neo-shibuya",mode:"solo"}:null;
-        original();
-        if(result)submitScore(result);
+      game.__scoreSubmitted=true;
+
+      function resultFor(current){
+        if(!current||current.onlineRole)return null;
+        return {
+          score:Math.max(0,Math.round(current.score||0)),
+          kills:Math.max(0,Math.round(current.kills||0)),
+          durationSeconds:Math.max(0,Math.floor(current.elapsed||0)),
+          environment:current.environment?.id||"neo-shibuya",
+          mode:"solo"
+        };
+      }
+
+      function markNewRun(){game.__scoreSubmitted=false;}
+      function saveCurrent(useBeacon){
+        if(game.__scoreSubmitted)return false;
+        const result=resultFor(game);
+        if(!result)return false;
+        game.__scoreSubmitted=true;
+        if(useBeacon&&navigator.sendBeacon){
+          try{return navigator.sendBeacon("/api/scores",new Blob([JSON.stringify(result)],{type:"application/json"}));}
+          catch(_){}
+        }
+        submitScore(result);
+        return true;
+      }
+
+      const originalStart=game.start.bind(game);
+      game.start=function(){
+        if(this.state==="playing"||this.state==="paused")saveCurrent(false);
+        originalStart();
+        markNewRun();
       };
+
+      const originalMainMenu=game.mainMenu.bind(game);
+      game.mainMenu=function(){
+        if(this.state==="playing"||this.state==="paused")saveCurrent(false);
+        originalMainMenu();
+      };
+
+      const originalEndGame=game.endGame.bind(game);
+      game.endGame=function(){
+        if(this.state!=="playing")return originalEndGame();
+        saveCurrent(false);
+        originalEndGame();
+      };
+
+      window.addEventListener("pagehide",()=>{
+        if(game.state==="playing"||game.state==="paused")saveCurrent(true);
+      });
     }
   });
 })();
