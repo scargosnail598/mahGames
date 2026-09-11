@@ -43,7 +43,8 @@ test("snapshot uses normalized positions and hydrates at another viewport size",
   assert.equal(snapshot.players[0].x,.4);assert.equal(snapshot.playerProjectiles[0].y,.4);
   const guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
   guest.applySnapshot(snapshot);
-  assert.equal(guestGame.environmentApplied,"shogun-valley");
+  assert.equal(guestGame.environment.id,"shogun-valley");
+  assert.equal(guestGame.environmentApplied,undefined,"unchanged world is not redundantly reapplied on every snapshot");
   assert.equal(guestGame.players[0].x,200);
   assert.equal(guestGame.players[1].x,300);
   assert.equal(guestGame.playerProjectiles[0].y,160);
