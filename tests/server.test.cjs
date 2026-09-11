@@ -39,7 +39,7 @@ test.after(async () => {
 test("guest server startup and gameplay assets remain functional", async () => {
   const base=`http://127.0.0.1:${server.address().port}`;
   const health=await fetch(base+"/healthz");
-  assert.equal(health.status,200);assert.deepEqual(await health.json(),{ok:true,rooms:0,version:"test-sha"});
+  assert.equal(health.status,200);assert.deepEqual(await health.json(),{ok:true,rooms:0,online:0,version:"test-sha"});
   const index=await fetch(base+"/");
   assert.equal(index.status,200);
   const html=await index.text();
@@ -49,6 +49,7 @@ test("guest server startup and gameplay assets remain functional", async () => {
   assert.match(index.headers.get("cache-control"),/no-store/);
   assert.equal((await fetch(base+"/js/game.js")).status,200);
   assert.equal((await fetch(base+"/js/leaderboard.js")).status,200);
+  assert.equal((await fetch(base+"/js/presence.js")).status,200);
   assert.equal((await fetch(base+"/server.js")).status,403);
 });
 
