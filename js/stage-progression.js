@@ -68,6 +68,15 @@
       if (game.audio) game.audio.stageIntensity = stage;
     }
 
+    game.applyNetworkStage = function (stage, shipRank) {
+      const nextStage = Math.max(0, Math.floor(Number(stage) || 0));
+      if (this.stage !== nextStage) {
+        this.stage = nextStage;
+        applyTheme(nextStage);
+      }
+      if (Number.isFinite(shipRank)) this.shipRank = Math.max(0, Math.min(6, Math.floor(shipRank)));
+    };
+
     function difficultyFor(stage) {
       const s = clampStage(stage, 12);
       return {

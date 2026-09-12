@@ -328,6 +328,7 @@
     }
 
     apply(player, game) {
+      const data = POWERUPS[this.type] || { color: Starfall.THEME.amber, label: "UNKNOWN POWER-UP" };
       if (this.type === "shield") player.shield = Math.min(C.PLAYER.maxShield, player.shield + 55);
       else if (this.type === "repair") player.health = Math.min(C.PLAYER.maxHealth, player.health + 35);
       else if (this.type === "rapid") player.rapidFire = Math.max(player.rapidFire, C.POWERUP.duration);
@@ -335,16 +336,16 @@
       else if (this.type === "invincible") player.invincible = Math.max(player.invincible, C.POWERUP.invincibilityDuration);
       else if (this.type === "drone") player.droneTime = Math.max(player.droneTime, C.POWERUP.droneDuration);
       game.audio.play("powerup");
-      game.effects.wave(this.x, this.y, 75, POWERUPS[this.type].color);
-      game.showToast(POWERUPS[this.type].label, POWERUPS[this.type].color);
+      game.effects.wave(this.x, this.y, 75, data.color);
+      game.showToast(data.label, data.color);
       this.dead = true;
     }
 
     draw(ctx) {
-      const T=Starfall.THEME, data=POWERUPS[this.type];
+      const T=Starfall.THEME, data=POWERUPS[this.type] || { color:T.amber };
       ctx.save(); ctx.translate(this.x,this.y);
       T.poly(ctx,[[0,-19],[17,-9],[17,9],[0,19],[-17,9],[-17,-9]],T.navy,data.color);
-      T.icon(ctx,this.type,data.color); ctx.restore();
+      T.icon(ctx,POWERUPS[this.type]?this.type:"shield",data.color); ctx.restore();
     }
   }
 

@@ -3,11 +3,12 @@
 
   const FIELDS={
     player:["x","y","targetX","targetY","radius","health","shield","fireTimer","damageCooldown","sinceDamage","rapidFire","tripleLaser","invincible","droneTime","tilt","dead","variant"],
-    projectile:["x","y","vx","vy","friendly","damage","radius","color","life","fromBoss","dead"],
-    enemy:["type","x","y","baseX","radius","maxHealth","health","speed","score","contactDamage","color","age","phase","shootTimer","entrySide","dead"],
-    powerup:["x","y","type","radius","speed","age","dead"],
-    boss:["x","y","radius","maxHealth","health","age","attackTimer","pattern","entering","weakPhase","dead","score","contactDamage"],
+    projectile:["x","y","vx","vy","friendly","damage","radius","color","life","fromBoss","dead","seeker","seekStrength","maxSpeed"],
+    enemy:["networkKind","archetype","type","x","y","baseX","radius","maxHealth","health","speed","score","contactDamage","color","age","phase","shootTimer","entrySide","turn","dead"],
+    powerup:["networkKind","x","y","type","radius","speed","age","dead"],
+    boss:["networkKind","x","y","radius","maxHealth","health","age","attackTimer","pattern","entering","weakPhase","dead","score","contactDamage","stageTempo","profileIndex","profile","combatIndex","rule","attackClock","specialClock","vulnerableClock","activeSide","nodeHP","nodeBroken","eyeAngle","teleportClock","phaseStep","specialHitFlash","specialHitKick","weakHitFlash","weakHitCount"],
     companion:["x","y","side","playerIndex","fireTimer"],
+    roninSpear:["networkKind","x","y","radius","speed","dead","life","angle"],
   };
   const POS=new Set(["x","y","targetX","targetY","baseX","tilt"]);
 
@@ -32,16 +33,17 @@
     return object;
   }
 
-  function reconcile(current,sources,Type,fields,w,h,prefix,localIndex,receivedAt){
+  function reconcile(current,sources,Type,fields,w,h,prefix,localIndex,receivedAt,resolveType){
     const prior=current||[],existing=new Map(prior.filter(item=>item._networkId).map(item=>[item._networkId,item]));
     const result=new Array(sources.length);
     for(let index=0;index<sources.length;index+=1){
       const source=sources[index],id=typeof source.netId==="string"?source.netId:`${prefix}-${index}`;
+      const candidate=typeof resolveType==="function"?resolveType(source):Type,ObjectType=typeof candidate==="function"?candidate:Type;
       let object=existing.get(id);
       if(!object&&prefix==="player")object=prior[index];
-      if(object&&!(object instanceof Type))object=null;
+      if(object&&!(object instanceof ObjectType))object=null;
       const isNew=!object;
-      if(!object)object=createNetworkObject(Type,source,fields,w,h);
+      if(!object)object=createNetworkObject(ObjectType,source,fields,w,h);
       object._networkId=id;
       object._networkNew=isNew;
       for(const field of fields)if(!POS.has(field))object[field]=source[field];
@@ -58,6 +60,9 @@
     }
     return result;
   }
+
+  function resolveEnemyType(source){return Starfall.NetworkEnemyTypes?.[source?.networkKind]||Starfall.Enemy;}
+  function resolvePowerUpType(source){return source?.networkKind==="ronin-spear-pickup"||source?.type==="ronin-spear"?Starfall.RoninSpearPickup||Starfall.PowerUp:Starfall.PowerUp;}
 
   class CoopClient{
     constructor(game){
@@ -90,6 +95,10 @@
       if(event==="pulse"){const source=g.players?.[Number(data.playerIndex)||0]||g.player;if(!source)return;g.effects.wave(source.x,source.y,Starfall.CONFIG.PULSE.radius,"#6fffff");g.effects.burst(source.x,source.y,"#7dffff",34,310);g.audio.play("pulse");g.shake=Math.max(g.shake,9);}
       else if(event==="enemy_burst"){const x=Number(data.x)*g.width,y=Number(data.y)*g.height;if(!Number.isFinite(x)||!Number.isFinite(y))return;const heavy=data.type==="heavy";g.effects.burst(x,y,"#ffb35a",heavy?24:14,heavy?255:185);if(data.byPulse)g.effects.text(x,y,"PULSE!","#8effff",13);g.audio.play("explosion");g.shake=Math.max(g.shake,heavy?5:2);}
       else if(event==="boss_burst"){const x=Number(data.x)*g.width,y=Number(data.y)*g.height;if(!Number.isFinite(x)||!Number.isFinite(y))return;g.effects.wave(x,y,260,"#ff70dd");for(let i=0;i<5;i+=1){const a=i/5*Math.PI*2;g.effects.burst(x+Math.cos(a)*44,y+Math.sin(a)*30,"#ffb35a",24,290);}g.audio.play("explosion");g.shake=Math.max(g.shake,12);}
+      else if(event==="ronin_pickup"){const x=Number(data.x)*g.width,y=Number(data.y)*g.height;if(!Number.isFinite(x)||!Number.isFinite(y))return;g.effects.wave(x,y,92,Starfall.THEME.amber);g.effects.text(x,y-30,data.converted?"SHIELD CONVERTED":"RONIN SPEAR",Starfall.THEME.amber,16);g.audio.play("powerup");}
+      else if(event==="ronin_launch"){const source=g.players?.[Number(data.playerIndex)||0]||g.player;if(!source)return;g.effects.wave(source.x,source.y,70,Starfall.THEME.amber);g.effects.burst(source.x,source.y-24,Starfall.THEME.cyan,14,150);if(typeof g.audio.tone==="function")g.audio.tone(220,920,.24,"sawtooth",.12);}
+      else if(event==="ronin_impact"){const x=Number(data.x)*g.width,y=Number(data.y)*g.height;if(!Number.isFinite(x)||!Number.isFinite(y))return;g.effects.wave(x,y,210,Starfall.THEME.amber);g.effects.burst(x,y,Starfall.THEME.amber,42,340);g.effects.text(x,y+72,"RONIN SPEAR!",Starfall.THEME.amber,24);g.showToast("DIRECT SPEAR IMPACT",Starfall.THEME.amber);g.audio.play("explosion");g.shake=Math.max(g.shake,16);}
+      else if(event==="stage_clear"){const source=g.players?.[g.localPlayerIndex]||g.player;if(source){g.effects.wave(source.x,source.y,105,Starfall.THEME.cyan);g.effects.burst(source.x-28,source.y+8,Starfall.THEME.cyan,10,120);g.effects.burst(source.x+28,source.y+8,Starfall.THEME.amber,10,120);}const line=typeof data.line==="string"?data.line.slice(0,96):"SECTOR CLEAR";g.showToast(`VICTORY!\n${line}`,Starfall.THEME.amber);}
     }
 
     bindUI(){
@@ -114,6 +123,7 @@
       else if(message.type==="ready"){this.role=message.role;this.room=message.room;this.actions.classList.add("hidden");this.waiting.classList.add("hidden");this.latencyLabel.textContent=this.role==="host"?"HOST":"SYNC…";this.game.startCoop(this.role,this.room,message.ships,Boolean(message.shipAdjusted),message.environment);}
       else if(message.type==="input"&&this.role==="host"){this.lastGuestInputSeq=Number.isSafeInteger(message.seq)?message.seq:this.lastGuestInputSeq;const player=this.game.players[1];if(player){player.targetX=Starfall.clamp(message.x,0,1)*this.game.width;player.targetY=Starfall.clamp(message.y,0,1)*this.game.height;}}
       else if(message.type==="pulse"&&this.role==="host")this.game.activatePulse(1);
+      else if(message.type==="ronin_spear"&&this.role==="host"&&typeof this.game.activateRoninSpear==="function")this.game.activateRoninSpear(1);
       else if(message.type==="state"&&this.role==="guest")this.applySnapshot(message.state);
       else if(message.type==="peer_left"){this.setStatus("THE OTHER PILOT DISCONNECTED",true);this.game.mainMenu();this.game.showScreen("coop-menu");}
       else if(message.type==="error")this.setStatus(message.message||"CO-OP ERROR",true);
@@ -121,6 +131,7 @@
 
     sendInput(x,y){const now=performance.now();this.localTarget={x:Starfall.clamp(x,0,1),y:Starfall.clamp(y,0,1)};const local=this.game.players?.[this.game.localPlayerIndex];if(local){local.targetX=this.localTarget.x*this.game.width;local.targetY=this.localTarget.y*this.game.height;}if(now-this.lastInputAt<33)return;this.lastInputAt=now;const seq=++this.inputSeq;this.pendingInputs.set(seq,now);this.send({type:"input",x:this.localTarget.x,y:this.localTarget.y,seq});}
     sendPulse(){this.send({type:"pulse"});}
+    sendRoninSpear(){this.send({type:"ronin_spear"});}
 
     tick(now){
       if(!document.hidden)this.shipChoices.forEach(choice=>{if(!choice.getClientRects().length)return;const canvas=choice.previewCanvas,ctx=canvas.getContext("2d"),time=Starfall.THEME.reducedMotion.matches?0:now/1000;ctx.clearRect(0,0,canvas.width,canvas.height);ctx.save();ctx.translate(120,86+Math.sin(time*1.7)*4);ctx.scale(2.25,2.25);ctx.rotate(Math.sin(time*.7)*.08);Starfall.THEME.ship(ctx,"player",time,Number(choice.dataset.ship));ctx.restore();});
@@ -128,7 +139,25 @@
     }
 
     idFor(item,prefix,index){if(prefix==="player"||prefix==="companion")return `${prefix}-${index}`;if(!item._networkId)item._networkId=`${prefix}-${++this.nextEntityId}`;return item._networkId;}
-    snapshot(){const g=this.game,w=g.width,h=g.height,fx=this.drainFx(),state={seq:++this.stateSeq,guestInputAck:this.lastGuestInputSeq,environment:g.environment?.id||"neo-shibuya",elapsed:g.elapsed,score:g.score,kills:g.kills,killChain:g.killChain,comboTimer:g.comboTimer,combo:g.combo,bestCombo:g.bestCombo,pulseEnergy:g.pulseEnergy,nextBossTime:g.nextBossTime,finished:g.state==="gameover",players:g.players.map((item,index)=>pick(item,FIELDS.player,w,h,this.idFor(item,"player",index))),playerProjectiles:g.playerProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"shot",index))),enemyProjectiles:g.enemyProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"enemy-shot",index))),enemies:g.enemies.map((item,index)=>pick(item,FIELDS.enemy,w,h,this.idFor(item,"enemy",index))),powerups:g.powerups.map((item,index)=>pick(item,FIELDS.powerup,w,h,this.idFor(item,"powerup",index))),boss:g.boss?pick(g.boss,FIELDS.boss,w,h,"boss"):null,companions:g.companions.map((item,index)=>pick(item,FIELDS.companion,w,h,this.idFor(item,"companion",index)))};if(fx)state.fx=fx;return state;}
+    snapshot(){
+      const g=this.game,w=g.width,h=g.height,fx=this.drainFx(),state={
+        protocolVersion:2,seq:++this.stateSeq,guestInputAck:this.lastGuestInputSeq,
+        environment:g.environment?.id||"neo-shibuya",elapsed:g.elapsed,score:g.score,kills:g.kills,
+        killChain:g.killChain,comboTimer:g.comboTimer,combo:g.combo,bestCombo:g.bestCombo,
+        pulseEnergy:g.pulseEnergy,nextBossTime:g.nextBossTime,stage:g.stage,shipRank:g.shipRank,
+        victoryDanceTime:g.victoryDanceTime,roninSpears:g.roninSpears,maxRoninSpears:g.maxRoninSpears,
+        finished:g.state==="gameover",
+        players:g.players.map((item,index)=>pick(item,FIELDS.player,w,h,this.idFor(item,"player",index))),
+        playerProjectiles:g.playerProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"shot",index))),
+        enemyProjectiles:g.enemyProjectiles.map((item,index)=>pick(item,FIELDS.projectile,w,h,this.idFor(item,"enemy-shot",index))),
+        enemies:g.enemies.map((item,index)=>pick(item,FIELDS.enemy,w,h,this.idFor(item,"enemy",index))),
+        powerups:g.powerups.map((item,index)=>pick(item,FIELDS.powerup,w,h,this.idFor(item,"powerup",index))),
+        boss:g.boss?pick(g.boss,FIELDS.boss,w,h,"boss"):null,
+        companions:g.companions.map((item,index)=>pick(item,FIELDS.companion,w,h,this.idFor(item,"companion",index))),
+        roninSpearProjectiles:(g.roninSpearProjectiles||[]).map((item,index)=>pick(item,FIELDS.roninSpear,w,h,this.idFor(item,"ronin-spear",index))),
+      };
+      if(fx)state.fx=fx;return state;
+    }
 
     alignLocalGuestShots(state,projectiles){
       const g=this.game,localIndex=g.localPlayerIndex;
@@ -157,16 +186,59 @@
     }
 
     applySnapshot(state){
-      if(!state||!Array.isArray(state.players))return false;if(Number.isSafeInteger(state.seq)&&state.seq<=this.lastSnapshotSeq)return false;if(Number.isSafeInteger(state.seq))this.lastSnapshotSeq=state.seq;const receivedAt=performance.now(),g=this.game,w=g.width,h=g.height;if(typeof state.environment==="string"&&typeof g.setEnvironment==="function"&&state.environment!==g.environment?.id)g.setEnvironment(state.environment,false);
-      for(const key of ["elapsed","score","kills","killChain","comboTimer","combo","bestCombo","pulseEnergy","nextBossTime"])if(Number.isFinite(state[key]))g[key]=state[key];this.acknowledgeInput(state.guestInputAck,receivedAt);
-      g.players=reconcile(g.players,state.players,Starfall.Player,FIELDS.player,w,h,"player",g.localPlayerIndex,receivedAt);g.player=g.players[0];if(this.localTarget&&g.players[g.localPlayerIndex]){g.players[g.localPlayerIndex].targetX=this.localTarget.x*w;g.players[g.localPlayerIndex].targetY=this.localTarget.y*h;}
-      g.playerProjectiles=reconcile(g.playerProjectiles,state.playerProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"shot",-1,receivedAt);this.alignLocalGuestShots(state,g.playerProjectiles);g.enemyProjectiles=reconcile(g.enemyProjectiles,state.enemyProjectiles||[],Starfall.Projectile,FIELDS.projectile,w,h,"enemy-shot",-1,receivedAt);g.enemies=reconcile(g.enemies,state.enemies||[],Starfall.Enemy,FIELDS.enemy,w,h,"enemy",-1,receivedAt);g.powerups=reconcile(g.powerups,state.powerups||[],Starfall.PowerUp,FIELDS.powerup,w,h,"powerup",-1,receivedAt);g.boss=state.boss?reconcile(g.boss?[g.boss]:[],[state.boss],Starfall.Boss,FIELDS.boss,w,h,"boss",-1,receivedAt)[0]:null;g.companions=reconcile(g.companions,state.companions||[],Starfall.CompanionDrone,FIELDS.companion,w,h,"companion",-1,receivedAt);g.companion=g.companions[0]||new Starfall.CompanionDrone(1,0);
-      if(Array.isArray(state.fx))for(const fx of state.fx)this.playFx(fx?.event,fx?.data);g.updateHUD();if(state.finished&&g.state==="playing")g.endGame();return true;
+      if(!state||!Array.isArray(state.players))return false;
+      if(Number.isSafeInteger(state.seq)&&state.seq<=this.lastSnapshotSeq)return false;
+      if(Number.isSafeInteger(state.seq))this.lastSnapshotSeq=state.seq;
+      const receivedAt=performance.now(),g=this.game,w=g.width,h=g.height,list=value=>Array.isArray(value)?value:[];
+      if(typeof state.environment==="string"&&typeof g.setEnvironment==="function"&&state.environment!==g.environment?.id)g.setEnvironment(state.environment,false);
+      for(const key of ["elapsed","score","kills","killChain","comboTimer","combo","bestCombo","pulseEnergy","nextBossTime","victoryDanceTime"])if(Number.isFinite(state[key]))g[key]=state[key];
+      if(Number.isFinite(state.stage)){
+        if(typeof g.applyNetworkStage==="function")g.applyNetworkStage(state.stage,state.shipRank);
+        else{g.stage=Math.max(0,Math.floor(state.stage));if(Number.isFinite(state.shipRank))g.shipRank=state.shipRank;}
+      }
+      if(Number.isFinite(state.maxRoninSpears))g.maxRoninSpears=Math.max(0,Math.floor(state.maxRoninSpears));
+      if(Number.isFinite(state.roninSpears))g.roninSpears=Math.max(0,Math.floor(state.roninSpears));
+      this.acknowledgeInput(state.guestInputAck,receivedAt);
+      g.players=reconcile(g.players,state.players,Starfall.Player,FIELDS.player,w,h,"player",g.localPlayerIndex,receivedAt);
+      g.player=g.players[0];
+      if(this.localTarget&&g.players[g.localPlayerIndex]){g.players[g.localPlayerIndex].targetX=this.localTarget.x*w;g.players[g.localPlayerIndex].targetY=this.localTarget.y*h;}
+      g.playerProjectiles=reconcile(g.playerProjectiles,list(state.playerProjectiles),Starfall.Projectile,FIELDS.projectile,w,h,"shot",-1,receivedAt);
+      this.alignLocalGuestShots(state,g.playerProjectiles);
+      g.enemyProjectiles=reconcile(g.enemyProjectiles,list(state.enemyProjectiles),Starfall.Projectile,FIELDS.projectile,w,h,"enemy-shot",-1,receivedAt);
+      g.enemies=reconcile(g.enemies,list(state.enemies),Starfall.Enemy,FIELDS.enemy,w,h,"enemy",-1,receivedAt,resolveEnemyType);
+      g.powerups=reconcile(g.powerups,list(state.powerups),Starfall.PowerUp,FIELDS.powerup,w,h,"powerup",-1,receivedAt,resolvePowerUpType);
+      g.boss=state.boss&&typeof state.boss==="object"?reconcile(g.boss?[g.boss]:[],[state.boss],Starfall.Boss,FIELDS.boss,w,h,"boss",-1,receivedAt)[0]:null;
+      g.companions=reconcile(g.companions,list(state.companions),Starfall.CompanionDrone,FIELDS.companion,w,h,"companion",-1,receivedAt);
+      g.companion=g.companions[0]||new Starfall.CompanionDrone(1,0);
+      const RoninType=typeof Starfall.RoninSpearProjectile==="function"?Starfall.RoninSpearProjectile:Starfall.Projectile;
+      g.roninSpearProjectiles=reconcile(g.roninSpearProjectiles,list(state.roninSpearProjectiles),RoninType,FIELDS.roninSpear,w,h,"ronin-spear",-1,receivedAt);
+      if(Array.isArray(state.fx))for(const fx of state.fx)this.playFx(fx?.event,fx?.data);
+      if(typeof g.updateRoninSpearBadge==="function")g.updateRoninSpearBadge();
+      if(typeof g.updateBossFeedback==="function")g.updateBossFeedback(0);
+      g.updateHUD();if(state.finished&&g.state==="playing")g.endGame();return true;
     }
 
     acknowledgeInput(ack,now){if(!Number.isSafeInteger(ack)||ack<=0)return;this.lastSnapshotAck=Math.max(this.lastSnapshotAck,ack);const sentAt=this.pendingInputs.get(ack);for(const seq of this.pendingInputs.keys())if(seq<=ack)this.pendingInputs.delete(seq);if(!Number.isFinite(sentAt))return;const sample=now-sentAt;this.controlLatency=this.controlLatency==null?sample:this.controlLatency*.78+sample*.22;const rounded=Math.round(this.controlLatency);this.latencyLabel.textContent=`${rounded} ms`;this.latencyLabel.classList.toggle("fair",rounded>=120&&rounded<220);this.latencyLabel.classList.toggle("poor",rounded>=220);}
     smooth(object,dt,rate,extrapolate){if(!object||!Number.isFinite(object._networkX))return;const age=Math.min(.18,Math.max(0,(performance.now()-object._networkAt)/1000)),targetX=object._networkX+(extrapolate&&Number.isFinite(object.vx)?object.vx*age:0),targetY=object._networkY+(extrapolate&&Number.isFinite(object.vy)?object.vy*age:0),dx=targetX-object.x,dy=targetY-object.y;if(dx*dx+dy*dy>90000){object.x=targetX;object.y=targetY;}else{const blend=1-Math.exp(-rate*dt);object.x+=dx*blend;object.y+=dy*blend;}if(Number.isFinite(object._networkTilt))object.tilt+=(object._networkTilt-object.tilt)*(1-Math.exp(-14*dt));}
-    updatePresentation(dt){if(this.role!=="guest"||this.game.onlineRole!=="guest")return;const g=this.game,local=g.players[g.localPlayerIndex];if(local&&!local.dead){const pad=30,desiredX=Starfall.clamp(local.targetX,pad,g.width-pad),desiredY=Starfall.clamp(local.targetY,105,g.height-pad),oldX=local.x,easing=1-Math.exp(-Starfall.CONFIG.PLAYER.followSpeed*dt);local.x+=(desiredX-local.x)*easing;local.y+=(desiredY-local.y)*easing;local.tilt+=((local.x-oldX)*.065-local.tilt)*Math.min(1,dt*9);const caughtUp=this.lastSnapshotAck>=this.inputSeq;if(caughtUp&&Number.isFinite(local._networkX)){const dx=local._networkX-local.x,dy=local._networkY-local.y;if(dx*dx+dy*dy>62500){local.x=local._networkX;local.y=local._networkY;}else if(dx*dx+dy*dy>36){const correction=1-Math.exp(-1.8*dt);local.x+=dx*correction;local.y+=dy*correction;}}}g.players.forEach((player,index)=>{if(index!==g.localPlayerIndex)this.smooth(player,dt,18,false);});g.playerProjectiles.forEach(item=>this.smooth(item,dt,24,true));g.enemyProjectiles.forEach(item=>this.smooth(item,dt,24,true));g.enemies.forEach(item=>this.smooth(item,dt,16,false));g.powerups.forEach(item=>this.smooth(item,dt,16,false));if(g.boss)this.smooth(g.boss,dt,13,false);g.companions.forEach(item=>this.smooth(item,dt,18,false));g.effects.update(dt);g.shake=Math.max(0,g.shake-dt*22);g.updateHUD();}
+    updatePresentation(dt){
+      if(this.role!=="guest"||this.game.onlineRole!=="guest")return;
+      const g=this.game,local=g.players[g.localPlayerIndex];
+      if(local&&!local.dead){
+        const pad=30,desiredX=Starfall.clamp(local.targetX,pad,g.width-pad),desiredY=Starfall.clamp(local.targetY,105,g.height-pad),oldX=local.x,easing=1-Math.exp(-Starfall.CONFIG.PLAYER.followSpeed*dt);
+        local.x+=(desiredX-local.x)*easing;local.y+=(desiredY-local.y)*easing;local.tilt+=((local.x-oldX)*.065-local.tilt)*Math.min(1,dt*9);
+        const caughtUp=this.lastSnapshotAck>=this.inputSeq;
+        if(caughtUp&&Number.isFinite(local._networkX)){const dx=local._networkX-local.x,dy=local._networkY-local.y;if(dx*dx+dy*dy>62500){local.x=local._networkX;local.y=local._networkY;}else if(dx*dx+dy*dy>36){const correction=1-Math.exp(-1.8*dt);local.x+=dx*correction;local.y+=dy*correction;}}
+      }
+      g.players.forEach((player,index)=>{if(index!==g.localPlayerIndex)this.smooth(player,dt,18,false);});
+      g.playerProjectiles.forEach(item=>this.smooth(item,dt,24,true));g.enemyProjectiles.forEach(item=>this.smooth(item,dt,24,true));
+      g.enemies.forEach(item=>this.smooth(item,dt,16,false));g.powerups.forEach(item=>this.smooth(item,dt,16,false));
+      if(g.boss)this.smooth(g.boss,dt,13,false);g.companions.forEach(item=>this.smooth(item,dt,18,false));
+      (g.roninSpearProjectiles||[]).forEach(item=>this.smooth(item,dt,24,true));
+      g.effects.update(dt);g.shake=Math.max(0,g.shake-dt*22);
+      if(typeof g.updateRoninSpearBadge==="function")g.updateRoninSpearBadge();
+      if(typeof g.updateBossFeedback==="function")g.updateBossFeedback(dt);
+      g.updateHUD();
+    }
 
     leave(sendMessage){if(sendMessage!==false)this.send({type:"leave"});this.intentionalClose=true;if(this.socket)this.socket.close();this.socket=null;this.role=null;this.room=null;this.lastSnapshotSeq=-1;this.lastSnapshotAck=0;this.pendingInputs.clear();this.localTarget=null;this.controlLatency=null;this.fxQueue.length=0;this.actions.classList.remove("hidden");this.waiting.classList.add("hidden");}
     onClose(){if(!this.intentionalClose&&this.game.onlineRole){this.game.mainMenu();this.game.showScreen("coop-menu");this.setStatus("CONNECTION LOST — TRY AGAIN",true);}}

@@ -9,6 +9,7 @@
     const C = Starfall.CONFIG;
     const bossHud = game.ui && game.ui["boss-hud"];
     if (!bossHud) return;
+    game.victoryDanceTime = Math.max(0, game.victoryDanceTime || 0);
 
     const hint = document.createElement("small");
     hint.id = "boss-tactical-hint";
@@ -49,9 +50,7 @@
       return Boolean(boss.weakPhase);
     }
 
-    const originalUpdate = game.update.bind(game);
-    game.update = function (dt) {
-      const result = originalUpdate(dt);
+    game.updateBossFeedback = function (dt) {
       const boss = this.boss;
 
       if (boss && !boss.dead) {
@@ -66,6 +65,12 @@
       }
 
       this.victoryDanceTime = Math.max(0, (this.victoryDanceTime || 0) - dt);
+    };
+
+    const originalUpdate = game.update.bind(game);
+    game.update = function (dt) {
+      const result = originalUpdate(dt);
+      this.updateBossFeedback(dt);
       return result;
     };
 
@@ -144,6 +149,9 @@
       }
 
       const line = VICTORY_LINES[(this.stage || 0) % VICTORY_LINES.length];
+      if (this.onlineRole === "host" && window.coopClient && typeof window.coopClient.queueFx === "function") {
+        window.coopClient.queueFx("stage_clear", { stage: this.stage || 0, line });
+      }
       setTimeout(() => {
         if (this.state === "playing") this.showToast(`VICTORY!\n${line}`, T.amber);
       }, 420);

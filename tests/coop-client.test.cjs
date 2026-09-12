@@ -19,8 +19,11 @@ Object.defineProperty(global,"navigator",{value:{clipboard:{writeText:async()=>{
 global.document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},querySelector(){return null;},querySelectorAll(){return[];}};
 global.addEventListener=()=>{};
 global.requestAnimationFrame=()=>{};
-global.Starfall={clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),CONFIG:{PLAYER:{followSpeed:7.2}}};
+global.Starfall={clamp:(v,min,max)=>Math.max(min,Math.min(max,v)),CONFIG:{PLAYER:{followSpeed:7.2}},THEME:{amber:"#fc6",cyan:"#5ef"}};
 for(const name of ["Player","Projectile","Enemy","PowerUp","Boss","CompanionDrone"])Starfall[name]=class{};
+Starfall.RoninSpearPickup=class RoninSpearPickup extends Starfall.PowerUp{};
+Starfall.RoninSpearProjectile=class RoninSpearProjectile extends Starfall.Projectile{};
+Starfall.NetworkEnemyTypes={"blade-skimmer":class BladeSkimmer extends Starfall.Enemy{}};
 require("../js/online.js");
 
 function game(width,height) {
@@ -30,9 +33,15 @@ function game(width,height) {
     playerProjectiles:[{x:width*.5,y:height*.4,vx:0,vy:-720,friendly:true,damage:14,radius:5,color:"#fff",life:2,fromBoss:false,dead:false}],
     enemyProjectiles:[],enemies:[],powerups:[],boss:null,
     companions:[{x:width*.45,y:height*.7,side:1,playerIndex:0,fireTimer:0}],
-    elapsed:12,score:42,kills:2,killChain:2,comboTimer:3,combo:1,bestCombo:1,pulseEnergy:60,nextBossTime:150,
-    state:"playing",onlineRole:"guest",localPlayerIndex:1,environment:{id:"shogun-valley"},effects:{update(){}},updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},
+    roninSpearProjectiles:[],roninSpears:0,maxRoninSpears:2,stage:0,shipRank:0,victoryDanceTime:0,
+    elapsed:12,score:42,kills:2,killChain:2,comboTimer:3,combo:1,bestCombo:1,pulseEnergy:60,nextBossTime:150,shake:0,
+    state:"playing",onlineRole:"guest",localPlayerIndex:1,environment:{id:"shogun-valley"},
+    effects:{events:[],update(){},wave(...args){this.events.push(["wave",...args]);},burst(...args){this.events.push(["burst",...args]);},text(...args){this.events.push(["text",...args]);}},
+    audio:{events:[],play(name){this.events.push(name);},tone(){}},
+    updateHUD(){this.hudUpdated=true;},endGame(){this.ended=true;},showScreen(){},showToast(message){this.toast=message;},
     setEnvironment(id){this.environment.id=id;this.environmentApplied=id;},
+    applyNetworkStage(stage,rank){this.stage=stage;this.shipRank=rank;this.stageApplied=true;},
+    updateRoninSpearBadge(){this.roninBadgeUpdated=true;},
   };
 }
 
@@ -95,4 +104,39 @@ test("new guest-owned shots spawn beside the locally predicted guest ship",()=>{
   assert.equal(shot._localGuestShot,true,"the fresh projectile is classified as the guest's shot");
   assert.ok(Math.abs(shot.x-420)<8,"the shot is horizontally aligned to the locally predicted guest ship");
   assert.ok(shot.y<280,"latency compensation advances the guest shot along its travel direction");
+});
+
+test("phase-one state hydrates stage, tactical boss, custom entities, and Ronin state",()=>{
+  const hostGame=game(1000,800),host=new Starfall.CoopClient(hostGame);
+  hostGame.stage=4;hostGame.shipRank=4;hostGame.victoryDanceTime=1.2;hostGame.roninSpears=2;
+  hostGame.enemies=[{networkKind:"blade-skimmer",archetype:"BLADE SKIMMER",type:"scout",x:240,y:180,baseX:240,radius:18,maxHealth:25,health:20,speed:120,score:100,contactDamage:14,color:"#fff",age:2,phase:.4,shootTimer:1,entrySide:0,turn:-1,dead:false}];
+  hostGame.powerups=[{networkKind:"ronin-spear-pickup",type:"ronin-spear",x:400,y:240,radius:21,speed:58,age:.5,dead:false}];
+  hostGame.boss={networkKind:"tactical-boss",x:500,y:128,radius:67,maxHealth:2500,health:1800,age:5,attackTimer:999,pattern:4,entering:false,weakPhase:false,dead:false,score:5000,contactDamage:30,profileIndex:4,profile:{name:"CRIMSON DAIMYO",accent:"coral"},combatIndex:4,rule:{key:"nodes"},attackClock:.4,specialClock:2,vulnerableClock:0,activeSide:-1,nodeHP:[0,92],nodeBroken:[true,false],eyeAngle:1.1,teleportClock:3,phaseStep:6,specialHitFlash:.6,specialHitKick:8,weakHitFlash:.1,weakHitCount:3};
+  hostGame.roninSpearProjectiles=[{networkKind:"ronin-spear-projectile",x:430,y:420,radius:10,speed:520,dead:false,life:2.4,angle:-1.2}];
+
+  const snapshot=host.snapshot(),guestGame=game(500,400),guest=new Starfall.CoopClient(guestGame);
+  assert.equal(guest.applySnapshot(snapshot),true);
+  assert.equal(guestGame.stage,4);assert.equal(guestGame.shipRank,4);assert.equal(guestGame.stageApplied,true);
+  assert.equal(guestGame.victoryDanceTime,1.2);assert.equal(guestGame.roninSpears,2);assert.equal(guestGame.roninBadgeUpdated,true);
+  assert.ok(guestGame.enemies[0] instanceof Starfall.NetworkEnemyTypes["blade-skimmer"]);
+  assert.ok(guestGame.powerups[0] instanceof Starfall.RoninSpearPickup);
+  assert.ok(guestGame.roninSpearProjectiles[0] instanceof Starfall.RoninSpearProjectile);
+  assert.ok(guestGame.boss instanceof Starfall.Boss);
+  assert.deepEqual(guestGame.boss.nodeBroken,[true,false]);assert.equal(guestGame.boss.profile.name,"CRIMSON DAIMYO");
+});
+
+test("host routes a guest Ronin command to the wingmate",()=>{
+  const hostGame=game(500,400),client=new Starfall.CoopClient(hostGame);
+  client.role="host";hostGame.activateRoninSpear=index=>{hostGame.roninSource=index;return true;};
+  client.onMessage({data:JSON.stringify({type:"ronin_spear"})});
+  assert.equal(hostGame.roninSource,1);
+});
+
+test("guest replays Ronin impact and stage-clear presentation effects",()=>{
+  const guestGame=game(500,400),client=new Starfall.CoopClient(guestGame);client.role="guest";
+  client.playFx("ronin_impact",{x:.5,y:.25});
+  assert.equal(guestGame.toast,"DIRECT SPEAR IMPACT");
+  assert.ok(guestGame.effects.events.some(event=>event[0]==="wave"&&event[1]===250&&event[2]===100));
+  client.playFx("stage_clear",{line:"TARGET ERASED"});
+  assert.equal(guestGame.toast,"VICTORY!\nTARGET ERASED");
 });

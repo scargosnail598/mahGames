@@ -45,6 +45,7 @@
     class TacticalBoss extends BaseBoss {
       constructor(width) {
         super(width);
+        this.networkKind = "tactical-boss";
         this.combatIndex = Math.max(0, window.starfallGame?.stage || 0) % 6;
         this.rule = BOSS_RULES[this.combatIndex];
         this.attackClock = .9;
@@ -60,20 +61,22 @@
       }
 
       weakPoint() {
-        const i = this.combatIndex;
+        const i = Number.isInteger(this.combatIndex) ? Math.max(0, Math.min(5, this.combatIndex)) : 0;
+        const activeSide = this.activeSide === -1 ? -1 : 1;
+        const nodeBroken = Array.isArray(this.nodeBroken) ? this.nodeBroken : [false, false];
         if (i === 0) return { x: this.x, y: this.y + 5, r: 18, active: this.vulnerableClock > 0 };
-        if (i === 1) return { x: this.x + this.activeSide * 62, y: this.y - 5, r: 22, active: true };
+        if (i === 1) return { x: this.x + activeSide * 62, y: this.y - 5, r: 22, active: true };
         if (i === 2) return { x: this.x, y: this.y + 30, r: 20, active: this.vulnerableClock > 0 };
         if (i === 3) {
           const a = this.eyeAngle + this.phaseStep * Math.PI * 2 / 3;
           return { x: this.x + Math.cos(a) * 48, y: this.y + 4 + Math.sin(a) * 24, r: 17, active: true };
         }
         if (i === 4) {
-          if (!this.nodeBroken[0]) return { x: this.x - 62, y: this.y - 8, r: 19, active: true, node: 0 };
-          if (!this.nodeBroken[1]) return { x: this.x + 62, y: this.y - 8, r: 19, active: true, node: 1 };
+          if (!nodeBroken[0]) return { x: this.x - 62, y: this.y - 8, r: 19, active: true, node: 0 };
+          if (!nodeBroken[1]) return { x: this.x + 62, y: this.y - 8, r: 19, active: true, node: 1 };
           return { x: this.x, y: this.y + 10, r: 21, active: true };
         }
-        return { x: this.x + this.activeSide * 34, y: this.y + 18, r: 18, active: true };
+        return { x: this.x + activeSide * 34, y: this.y + 18, r: 18, active: true };
       }
 
       receiveLaser(laser, g) {
@@ -234,8 +237,9 @@
         ctx.beginPath(); ctx.arc(wp.x, wp.y, wp.r * pulse, 0, Math.PI * 2); ctx.stroke();
         ctx.beginPath(); ctx.arc(wp.x, wp.y, 4, 0, Math.PI * 2); ctx.fill();
         if (this.combatIndex === 4) {
+          const nodeBroken = Array.isArray(this.nodeBroken) ? this.nodeBroken : [false, false];
           for (let n = 0; n < 2; n++) {
-            if (this.nodeBroken[n]) continue;
+            if (nodeBroken[n]) continue;
             const nx = this.x + (n ? 62 : -62), ny = this.y - 8;
             ctx.strokeStyle = T.coral; ctx.globalAlpha = .65;
             ctx.beginPath(); ctx.arc(nx, ny, 19, 0, Math.PI * 2); ctx.stroke();
@@ -253,6 +257,7 @@
       constructor(x, y, difficulty) {
         super("scout", x, y, difficulty);
         this.archetype = "BLADE SKIMMER";
+        this.networkKind = "blade-skimmer";
         this.radius = 18; this.speed *= 1.2; this.maxHealth *= .95; this.health = this.maxHealth;
         this.shootTimer = 1.2; this.turn = Math.random() < .5 ? -1 : 1;
       }
@@ -278,6 +283,7 @@
       constructor(x, y, difficulty) {
         super("zigzag", x, y, difficulty);
         this.archetype = "PRISM WEAVER";
+        this.networkKind = "prism-weaver";
         this.radius = 21; this.speed *= .82; this.maxHealth *= 1.18; this.health = this.maxHealth;
         this.shootTimer = 1.55;
       }
@@ -303,6 +309,7 @@
       constructor(x, y, difficulty) {
         super("heavy", x, y, difficulty);
         this.archetype = "LANTERN SEEKER";
+        this.networkKind = "lantern-seeker";
         this.radius = 24; this.speed *= .72; this.maxHealth *= 1.3; this.health = this.maxHealth;
         this.shootTimer = 1.8;
       }
@@ -324,6 +331,11 @@
         ctx.restore();
       }
     }
+
+    Starfall.NetworkEnemyTypes = Starfall.NetworkEnemyTypes || Object.create(null);
+    Starfall.NetworkEnemyTypes["blade-skimmer"] = BladeSkimmer;
+    Starfall.NetworkEnemyTypes["prism-weaver"] = PrismWeaver;
+    Starfall.NetworkEnemyTypes["lantern-seeker"] = LanternSeeker;
 
     // Seekers gently curve; capped steering keeps them readable and dodgeable.
     const originalUpdate = game.update.bind(game);

@@ -302,16 +302,25 @@
     }
 
     loop(timestamp) {
-      const rawDt = Math.max(0, (timestamp - this.lastTime) / 1000);
-      const dt = Math.min(C.WORLD.maxDelta, rawDt);
-      this.lastTime = timestamp;
-      this.backgroundTime += dt;
-      this.environment.update(dt, this.state === "playing" ? 1 : .38);
-      if (this.state === "playing" && this.onlineRole !== "guest") this.update(dt);
-      else if (this.state === "playing" && window.coopClient) window.coopClient.updatePresentation(dt);
-      else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
-      this.draw();
       requestAnimationFrame((time) => this.loop(time));
+      try {
+        const rawDt = Math.max(0, (timestamp - this.lastTime) / 1000);
+        const dt = Math.min(C.WORLD.maxDelta, rawDt);
+        this.lastTime = timestamp;
+        this.backgroundTime += dt;
+        this.environment.update(dt, this.state === "playing" ? 1 : .38);
+        if (this.state === "playing" && this.onlineRole !== "guest") this.update(dt);
+        else if (this.state === "playing" && window.coopClient) window.coopClient.updatePresentation(dt);
+        else if (this.state === "menu" || this.state === "gameover") this.effects.update(dt);
+        this.draw();
+      } catch (error) {
+        this.lastFrameError = error;
+        const now = performance.now();
+        if (!Number.isFinite(this.lastFrameErrorReportedAt) || now - this.lastFrameErrorReportedAt >= 1000) {
+          this.lastFrameErrorReportedAt = now;
+          console.error("Starfall frame recovered after an error", error);
+        }
+      }
     }
 
     update(dt) {
