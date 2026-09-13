@@ -125,6 +125,9 @@ test("pairs exactly two pilots and relays only allowed messages", async () => {
   const pulse=message(host);guest.send(JSON.stringify({type:"pulse"}));
   assert.deepEqual(await pulse,{type:"pulse"});
 
+  const ronin=message(host);guest.send(JSON.stringify({type:"ronin_spear"}));
+  assert.deepEqual(await ronin,{type:"ronin_spear"});
+
   const state=message(guest);host.send(JSON.stringify({type:"state",state:{score:42,players:[]}}));
   assert.deepEqual(await state,{type:"state",state:{score:42,players:[]}});
 

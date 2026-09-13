@@ -115,6 +115,7 @@
       constructor(x, y, difficulty) {
         super("hunter", x, y, difficulty);
         this.archetype = "RONIN INTERCEPTOR";
+        this.networkKind = "ronin-interceptor";
         this.speed *= 1.05;
         this.maxHealth *= 1.08;
         this.health = this.maxHealth;
@@ -146,6 +147,7 @@
       constructor(x, y, difficulty) {
         super("zigzag", x, y, difficulty);
         this.archetype = "SHRINE LANCER";
+        this.networkKind = "shrine-lancer";
         this.maxHealth *= 1.22;
         this.health = this.maxHealth;
         this.speed *= .82;
@@ -172,6 +174,10 @@
       }
     }
 
+    Starfall.NetworkEnemyTypes = Starfall.NetworkEnemyTypes || Object.create(null);
+    Starfall.NetworkEnemyTypes["ronin-interceptor"] = RoninInterceptor;
+    Starfall.NetworkEnemyTypes["shrine-lancer"] = ShrineLancer;
+
     const BOSS_PROFILES = [
       { name: "KAGE WARDEN", title: "KEEPER OF THE JADE GATE", accent: "cyan" },
       { name: "TORII REAPER", title: "BLADE OF THE VIOLET TIDE", accent: "amber" },
@@ -184,6 +190,7 @@
     Starfall.Boss = class CharacterBoss extends BaseBoss {
       constructor(width) {
         super(width);
+        this.networkKind = "character-boss";
         this.profileIndex = Math.max(0, window.starfallGame?.stage || 0) % BOSS_PROFILES.length;
         this.profile = BOSS_PROFILES[this.profileIndex];
         this.pattern = this.profileIndex;
@@ -200,18 +207,20 @@
       }
       draw(ctx, time) {
         super.draw(ctx, time);
-        const color = T[this.profile.accent] || T.coral;
+        const index = Number.isInteger(this.profileIndex) ? Math.max(0, Math.min(BOSS_PROFILES.length - 1, this.profileIndex)) : 0;
+        const profile = this.profile && typeof this.profile === "object" ? this.profile : BOSS_PROFILES[index];
+        const color = T[profile.accent] || T.coral;
         ctx.save(); ctx.translate(this.x, this.y); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.globalAlpha = .72; ctx.lineWidth = 2;
-        if (this.profileIndex === 0) {
+        if (index === 0) {
           ctx.beginPath(); ctx.arc(0, 5, 31, 0, Math.PI * 2); ctx.stroke();
-        } else if (this.profileIndex === 1) {
+        } else if (index === 1) {
           for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(s * 48, -25); ctx.lineTo(s * 96, -53); ctx.lineTo(s * 69, 4); ctx.stroke(); }
-        } else if (this.profileIndex === 2) {
+        } else if (index === 2) {
           ctx.beginPath(); ctx.moveTo(-55, -30); ctx.lineTo(-26, -62); ctx.lineTo(0, -43); ctx.lineTo(26, -62); ctx.lineTo(55, -30); ctx.stroke();
-        } else if (this.profileIndex === 3) {
+        } else if (index === 3) {
           ctx.beginPath(); ctx.ellipse(0, 4, 47, 18, 0, 0, Math.PI * 2); ctx.stroke();
           ctx.beginPath(); ctx.arc(0, 4, 5 + Math.sin(time * 4) * 2, 0, Math.PI * 2); ctx.fill();
-        } else if (this.profileIndex === 4) {
+        } else if (index === 4) {
           for (const s of [-1, 1]) { ctx.fillRect(s * 61 - 3, -44, 6, 65); ctx.beginPath(); ctx.moveTo(s * 61, -44); ctx.lineTo(s * 81, -64); ctx.stroke(); }
         } else {
           ctx.beginPath(); ctx.arc(0, 4, 44, Math.PI * .15, Math.PI * .85); ctx.stroke();

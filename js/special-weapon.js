@@ -28,16 +28,19 @@
       badge.classList.toggle("armed", game.roninSpears > 0);
       badge.classList.toggle("boss-live", Boolean(game.boss && !game.boss.dead));
     }
+    game.updateRoninSpearBadge = updateBadge;
 
     class RoninSpearPickup extends BasePowerUp {
       constructor(x, y) {
         super(x, y, "shield");
         this.type = "ronin-spear";
+        this.networkKind = "ronin-spear-pickup";
         this.radius = 21;
         this.speed = 58;
       }
       apply(player, activeGame) {
-        if (activeGame.roninSpears >= activeGame.maxRoninSpears) {
+        const converted = activeGame.roninSpears >= activeGame.maxRoninSpears;
+        if (converted) {
           player.shield = Math.min(Starfall.CONFIG.PLAYER.maxShield, player.shield + 18);
           activeGame.showToast("RONIN SPEAR CACHE FULL\nSHIELD CONVERTED", T.cyan);
         } else {
@@ -45,6 +48,9 @@
           activeGame.showToast("RONIN SPEAR ACQUIRED\n3× TAP DURING BOSS", T.amber);
           activeGame.effects.wave(this.x, this.y, 92, T.amber);
           activeGame.audio.play("powerup");
+        }
+        if (activeGame.onlineRole === "host" && window.coopClient && typeof window.coopClient.queueFx === "function") {
+          window.coopClient.queueFx("ronin_pickup", { x: this.x / activeGame.width, y: this.y / activeGame.height, converted });
         }
         updateBadge();
         this.dead = true;
@@ -77,6 +83,7 @@
         this.dead = false;
         this.life = 3.2;
         this.angle = -Math.PI / 2;
+        this.networkKind = "ronin-spear-projectile";
       }
       update(dt) {
         if (!this.target || this.target.dead) { this.dead = true; return; }
@@ -112,13 +119,16 @@
           g.audio.tone(95, 38, .42, "sawtooth", .17);
           g.audio.tone(760, 130, .26, "triangle", .08, .03);
         }
+        if (g.onlineRole === "host" && window.coopClient && typeof window.coopClient.queueFx === "function") {
+          window.coopClient.queueFx("ronin_impact", { x: boss.x / g.width, y: boss.y / g.height });
+        }
         g.damageBoss(base * multiplier);
         this.dead = true;
       }
       draw(ctx) {
         ctx.save();
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle + Math.PI / 2);
+        ctx.rotate((Number.isFinite(this.angle) ? this.angle : -Math.PI / 2) + Math.PI / 2);
         ctx.strokeStyle = T.amber;
         ctx.fillStyle = T.ivory;
         ctx.lineWidth = 2;
@@ -131,8 +141,11 @@
       }
     }
 
+    Starfall.RoninSpearPickup = RoninSpearPickup;
+    Starfall.RoninSpearProjectile = RoninSpearProjectile;
+
     game.roninSpearProjectiles = [];
-    game.activateRoninSpear = function () {
+    game.activateRoninSpear = function (playerIndex) {
       if (this.state !== "playing" || !this.boss || this.boss.dead || this.boss.entering) {
         if (this.roninSpears > 0) this.showToast("RONIN SPEAR\nSAVE IT FOR THE BOSS", T.muted);
         return false;
@@ -141,10 +154,20 @@
         this.showToast("NO RONIN SPEAR", T.muted);
         return false;
       }
-      const local = this.getLocalPlayer();
-      if (!local || local.dead) return false;
+      const sourceIndex = playerIndex == null ? this.localPlayerIndex : Number(playerIndex);
+      if (this.onlineRole === "guest") {
+        if (!window.coopClient || typeof window.coopClient.sendRoninSpear !== "function") return false;
+        window.coopClient.sendRoninSpear();
+        this.showToast("RONIN SPEAR LAUNCHED", T.amber);
+        return true;
+      }
+      const source = this.players?.[sourceIndex] || this.getLocalPlayer();
+      if (!source || source.dead) return false;
       this.roninSpears -= 1;
-      this.roninSpearProjectiles.push(new RoninSpearProjectile(local, this.boss));
+      this.roninSpearProjectiles.push(new RoninSpearProjectile(source, this.boss));
+      if (this.onlineRole === "host" && window.coopClient && typeof window.coopClient.queueFx === "function") {
+        window.coopClient.queueFx("ronin_launch", { playerIndex: sourceIndex });
+      }
       this.showToast("RONIN SPEAR LAUNCHED", T.amber);
       if (this.audio) this.audio.tone(220, 920, .24, "sawtooth", .12);
       updateBadge();
